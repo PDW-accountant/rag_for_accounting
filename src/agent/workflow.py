@@ -46,7 +46,7 @@ def handle_node_errors(node_name: str):
             try:
                 return func(state)
             except AccountingRAGError as e:
-                # 커스텀 예외 처리(Exception.py에서 정의)
+                # 커스텀 예외 처리(AccountingRAGError 계열)
                 new_logs = state.error_logs + [e.to_error_log()]
                 return {"error_logs": new_logs}
             except Exception as e:
@@ -278,7 +278,7 @@ def rerank(state: GraphState) -> dict:
         f"질의: {state.original_query[:50]}..."
     )
 
-    # TODO: search 노드 구현 후 search-rerank 간 관계 재정의 후에 처리 방식을 명확하게 결정해야 함
+    # TODO: search 실패(빈 결과)와 rerank 자체 실패를 지금처럼 별개로 다룰지, 하나의 재검색 신호로 합칠지 재정의해야 한다
     # 현재는 retrieved_chunks가 비어있을 때 조기 반환하여 ScoreThresholdError를 발생시키지 않는다.
     # 이는 search 노드 실패(빈 결과)와 리랭킹 자체 실패를 구분하기 위함이다.
     if not state.retrieved_chunks:
@@ -333,7 +333,7 @@ def rerank(state: GraphState) -> dict:
 
 def route_after_evaluate(state: GraphState) -> str:
     """
-    TODO: FUNC-009 (평가 후 라우팅 결정)
+    evaluate 노드 직후 라우팅 결정.
     평가 결과 또는 에러 상태에 따라 다음 노드를 결정한다.
 
     [IF문 우선순위]
@@ -390,9 +390,9 @@ def build_workflow(checkpointer: BaseCheckpointSaver | None = None) -> CompiledS
         HIL을 사용하는 run_workflow/resume_workflow는 MemorySaver 싱글턴(_CHECKPOINTER)을 주입한다.
 
     return CompiledStateGraph : LangGraph로 빌드된 상태 그래프
-    왜 CompiledGraph를 사용하는가? -> StateGraph보다 성능이 좋다. (동작 방식은 동일하지만 내부적으로 최적화됨)
-    동작 방식이 어떠한데? -> LangGraph의 build_workflow를 통해 StateGraph를 컴파일하면 CompiledStateGraph 객체가 반환된다.
-    이 객체는 내부적으로 최적화되어 StateGraph보다 빠른 실행 속도를 제공한다. 
+    왜 CompiledGraph를 사용하는가? -> 성능 때문이 아니라 필수 절차이기 때문이다. StateGraph 자체에는
+    invoke()·stream() 같은 실행 메서드가 없어, compile()로 컴파일해야 실행 가능한
+    CompiledStateGraph 객체가 된다.
     """
     workflow = StateGraph(GraphState)
 
