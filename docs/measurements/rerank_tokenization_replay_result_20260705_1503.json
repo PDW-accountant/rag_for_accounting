@@ -1,0 +1,180 @@
+{
+  "generated_at": "2026-07-05T15:03:17.316692+09:00",
+  "rerank_model": "BAAI/bge-reranker-v2-m3",
+  "k": 60,
+  "top_n": 10,
+  "cold_start_s": 8.15,
+  "latency_p50_s": 6.6191,
+  "selfcheck_mismatches": [],
+  "cells": {
+    "plainto": {
+      "first_hits": {
+        "TEST-K-GAAP-001": 1,
+        "TEST-K-GAAP-002": null,
+        "TEST-K-GAAP-003": 9,
+        "TEST-K-GAAP-004": 7,
+        "TEST-K-GAAP-005": null,
+        "TEST-K-GAAP-006": null,
+        "TEST-K-GAAP-007": 2,
+        "TEST-K-GAAP-008": 1,
+        "TEST-K-GAAP-009": 1,
+        "TEST-K-GAAP-010": 3,
+        "TEST-K-GAAP-011": null,
+        "TEST-K-GAAP-012": 2,
+        "TEST-K-GAAP-013": null,
+        "TEST-K-GAAP-014": 1
+      },
+      "retrieval_pass": 7
+    },
+    "morph": {
+      "first_hits": {
+        "TEST-K-GAAP-001": 3,
+        "TEST-K-GAAP-002": null,
+        "TEST-K-GAAP-003": 3,
+        "TEST-K-GAAP-004": 1,
+        "TEST-K-GAAP-005": null,
+        "TEST-K-GAAP-006": null,
+        "TEST-K-GAAP-007": 2,
+        "TEST-K-GAAP-008": 1,
+        "TEST-K-GAAP-009": 2,
+        "TEST-K-GAAP-010": 6,
+        "TEST-K-GAAP-011": null,
+        "TEST-K-GAAP-012": 4,
+        "TEST-K-GAAP-013": 4,
+        "TEST-K-GAAP-014": 1
+      },
+      "retrieval_pass": 9
+    },
+    "plainto+rerank": {
+      "first_hits": {
+        "TEST-K-GAAP-001": 4,
+        "TEST-K-GAAP-002": null,
+        "TEST-K-GAAP-003": 2,
+        "TEST-K-GAAP-004": 1,
+        "TEST-K-GAAP-005": null,
+        "TEST-K-GAAP-006": null,
+        "TEST-K-GAAP-007": 2,
+        "TEST-K-GAAP-008": 1,
+        "TEST-K-GAAP-009": 4,
+        "TEST-K-GAAP-010": 7,
+        "TEST-K-GAAP-011": null,
+        "TEST-K-GAAP-012": 4,
+        "TEST-K-GAAP-013": null,
+        "TEST-K-GAAP-014": 5
+      },
+      "retrieval_pass": 8
+    },
+    "morph+rerank": {
+      "first_hits": {
+        "TEST-K-GAAP-001": 3,
+        "TEST-K-GAAP-002": null,
+        "TEST-K-GAAP-003": 4,
+        "TEST-K-GAAP-004": 1,
+        "TEST-K-GAAP-005": null,
+        "TEST-K-GAAP-006": null,
+        "TEST-K-GAAP-007": 4,
+        "TEST-K-GAAP-008": 1,
+        "TEST-K-GAAP-009": 5,
+        "TEST-K-GAAP-010": 9,
+        "TEST-K-GAAP-011": null,
+        "TEST-K-GAAP-012": 5,
+        "TEST-K-GAAP-013": 5,
+        "TEST-K-GAAP-014": 5
+      },
+      "retrieval_pass": 9
+    }
+  },
+  "verdicts": {
+    "morph": {
+      "adopt": false,
+      "gains": [
+        "TEST-K-GAAP-004"
+      ],
+      "regressions": [
+        "TEST-K-GAAP-001",
+        "TEST-K-GAAP-009"
+      ],
+      "mrr_delta": -0.02056277056277056,
+      "population": [
+        "TEST-K-GAAP-001",
+        "TEST-K-GAAP-002",
+        "TEST-K-GAAP-004",
+        "TEST-K-GAAP-006",
+        "TEST-K-GAAP-007",
+        "TEST-K-GAAP-008",
+        "TEST-K-GAAP-009",
+        "TEST-K-GAAP-010",
+        "TEST-K-GAAP-011",
+        "TEST-K-GAAP-013",
+        "TEST-K-GAAP-014"
+      ],
+      "reasons": [
+        "Hit@1 순증 1건 < 기준 2건",
+        "기존 hit@1 회귀 2건: TEST-K-GAAP-001, TEST-K-GAAP-009",
+        "MRR 순증 없음 (Δ=-0.0206)"
+      ]
+    },
+    "plainto+rerank": {
+      "adopt": false,
+      "gains": [
+        "TEST-K-GAAP-004"
+      ],
+      "regressions": [
+        "TEST-K-GAAP-001",
+        "TEST-K-GAAP-009",
+        "TEST-K-GAAP-014"
+      ],
+      "mrr_delta": -0.1484848484848485,
+      "population": [
+        "TEST-K-GAAP-001",
+        "TEST-K-GAAP-002",
+        "TEST-K-GAAP-004",
+        "TEST-K-GAAP-006",
+        "TEST-K-GAAP-007",
+        "TEST-K-GAAP-008",
+        "TEST-K-GAAP-009",
+        "TEST-K-GAAP-010",
+        "TEST-K-GAAP-011",
+        "TEST-K-GAAP-013",
+        "TEST-K-GAAP-014"
+      ],
+      "reasons": [
+        "Hit@1 순증 1건 < 기준 2건",
+        "기존 hit@1 회귀 3건: TEST-K-GAAP-001, TEST-K-GAAP-009, TEST-K-GAAP-014",
+        "MRR 순증 없음 (Δ=-0.1485)",
+        "쿼리당 지연 p50 6.62s > 기준 5.0s"
+      ]
+    },
+    "morph+rerank": {
+      "adopt": false,
+      "gains": [
+        "TEST-K-GAAP-004"
+      ],
+      "regressions": [
+        "TEST-K-GAAP-001",
+        "TEST-K-GAAP-009",
+        "TEST-K-GAAP-014"
+      ],
+      "mrr_delta": -0.1528860028860029,
+      "population": [
+        "TEST-K-GAAP-001",
+        "TEST-K-GAAP-002",
+        "TEST-K-GAAP-004",
+        "TEST-K-GAAP-006",
+        "TEST-K-GAAP-007",
+        "TEST-K-GAAP-008",
+        "TEST-K-GAAP-009",
+        "TEST-K-GAAP-010",
+        "TEST-K-GAAP-011",
+        "TEST-K-GAAP-013",
+        "TEST-K-GAAP-014"
+      ],
+      "reasons": [
+        "Hit@1 순증 1건 < 기준 2건",
+        "기존 hit@1 회귀 3건: TEST-K-GAAP-001, TEST-K-GAAP-009, TEST-K-GAAP-014",
+        "MRR 순증 없음 (Δ=-0.1529)",
+        "쿼리당 지연 p50 6.62s > 기준 5.0s"
+      ]
+    }
+  }
+}
