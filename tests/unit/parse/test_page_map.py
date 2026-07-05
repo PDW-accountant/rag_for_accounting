@@ -44,7 +44,7 @@ class TestBuildPageTexts:
     def test_includes_table_cell_texts(self):
         """표 셀 텍스트도 페이지 맵에 포함한다 — 표 조판 청크(용어의 정의·사례) 정렬용.
 
-        ch10 파일럿 실측: 용어의 정의 7건·사례 표가 doc.texts에 없어 미매칭됐다(82.4%).
+        ch10 파일럿 실측: 용어의 정의 7건과 사례 표가 doc.texts에 없어 미매칭됐고, 이 때문에 ch10 전체 청크의 페이지 매칭률이 82.4%에 그쳤다.
         """
         import pandas as pd
 
@@ -71,7 +71,7 @@ class TestAssignPages:
         assert assign_pages(content, self.PAGES) == (1, 1)
 
     def test_page_spanning_chunk_returns_range(self):
-        """페이지 걸침 청크는 (min, max) 범위로 흡수한다 — 게이트 표본 강제 포함 유형."""
+        """페이지 걸침 청크는 (min, max) 범위로 흡수한다 — 실제 문서에서도 자주 나타나는 유형이라 테스트 표본에 반드시 넣었다."""
         content = (
             "#### 10.2\n유형자산의 취득원가는 구입원가 또는 제작원가로 한다.\n"
             "#### 10.3\n유형자산의 감가상각은 자산의 내용연수에 걸쳐 체계적으로 배분한다."
