@@ -1,4 +1,4 @@
-# FUNC-002~009 전반에서 사용하는 공용 데이터 스키마
+# 문서 파싱부터 답변 생성까지 파이프라인 전 단계(파싱·인덱싱·재작성·검색·재정렬·평가·생성)가 공유하는 데이터 스키마 모음
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Literal
 
@@ -74,7 +74,7 @@ class ChunkMetadata(BaseModel):
       - standard_type    ↔ OntologyNode.standard_type  ("GAAP"|"KIFRS")
       - chapter          ↔ OntologyNode.chapter         (예: "6")
 
-    extra="allow"로 DB JSONB의 비정형 키(예: "source")도 수용하며,
+    extra="allow"로 DB JSONB의 비정형 키(예: 원본 파일 경로를 담는 "source_path")도 수용하며,
     이들은 `model_extra`를 통해 접근한다.
     """
     model_config = ConfigDict(extra="allow")
@@ -85,7 +85,7 @@ class ChunkMetadata(BaseModel):
     chapter: str | None = None
 
 class RetrievedChunk(BaseModel):
-    """검색된 청크 — Dense/Sparse/Hybrid 검색 결과 단위 (FUNC-005 출력)"""
+    """청크 단위 데이터 — 검색 시에는 Dense/Sparse/Hybrid 검색 결과를 담고, 인덱싱 시에는 온톨로지 청커가 문서를 분할한 조각을 담는다(분할 단계에서는 score가 0.0으로 채워진다)"""
     chunk_id: str
     document_id: str
     content: str
