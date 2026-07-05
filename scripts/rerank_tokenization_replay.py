@@ -82,24 +82,35 @@ def weighted_rrf(
     return [keep[cid] for cid in sorted(scores, key=lambda c: scores[c], reverse=True)][:n]
 
 
-def _load_reranker(cross_encoder_cls, spec: dict):
-    """리랭커를 로드한다. 기본(자동) 디바이스 실패 시 CPU로 폴백해 Hit@1 신호는 확보한다.
-
-    gte-multilingual 류는 trust_remote_code 커스텀 구현이 MPS와 비호환이라 자동 디바이스에서 로드가 깨진다(#159).
-    지연은 CPU라 게이트엔 무의미해도, "점수를 더 잘 가르는가"는 CPU로도 잴 수 있으므로 폴백한다.
-    반환: (model|None, device_str, error_str|None).
+def _score_with_reranker(cross_encoder_cls, spec: dict, measured: list) -> tuple:
     """
-    last_err = "?"
-    for device in (None, "cpu"):  # None=자동, 실패 시 cpu 재시도
+    모델을 로드해 케이스별 합집합 후보에 점수를 매긴다. 자동 디바이스에서 로드 또는 predict가 깨지면 CPU로 재시도한다.
+
+    gte-multilingual 류는 trust_remote_code 커스텀 구현이 MPS와 비호환이라,
+    로드는 되고도 predict에서 AcceleratorError(out-of-bounds)로 죽는다. 
+    지연은 CPU라 게이트엔 무의미해도 "점수를 더 잘 가르는가"는 CPU로도 재므로, 로드·추론 어느 단계에서 깨지든 CPU로 한 번 더 시도한다.
+    반환: (device_str, cold_start_s, {case_id: {chunk_id: score}}, p50). 자동·CPU 모두 실패하면 예외를 올린다.
+    """
+    last_err = None
+    for device in (None, "cpu"):  # None=자동(MPS), 실패 시 CPU 재시도
         try:
+            t0 = time.perf_counter()
             kwargs = {"max_length": spec["max_length"], "trust_remote_code": spec["trust_remote_code"]}
             if device:
                 kwargs["device"] = device
             model = cross_encoder_cls(spec["name"], **kwargs)
-            return model, str(getattr(model, "device", device or "?")), None
-        except Exception as e:  # noqa: BLE001 — 로드 실패 모델은 기록하고 건너뛴다(측정 계속)
+            cold_start_s = time.perf_counter() - t0
+
+            latencies, per_case = [], {}
+            for rc in measured:
+                t1 = time.perf_counter()
+                raw = model.predict([(rc["query"], c.content) for c in rc["union"]])
+                latencies.append(time.perf_counter() - t1)
+                per_case[rc["id"]] = {c.chunk_id: _sigmoid(float(s)) for c, s in zip(rc["union"], raw)}
+            return str(getattr(model, "device", device or "?")), cold_start_s, per_case, statistics.median(latencies)
+        except Exception as e:  # noqa: BLE001 — 이 디바이스 실패는 다음(CPU)에서 재시도, 둘 다 실패면 아래서 raise
             last_err = f"{type(e).__name__}: {e}"
-    return None, "?", last_err
+    raise RuntimeError(last_err)
 
 
 def run_measure(out_dir: str, top_n: int, k: int, dense_weight: float, model_keys: list[str]) -> int:
@@ -181,25 +192,16 @@ def run_measure(out_dir: str, top_n: int, k: int, dense_weight: float, model_key
     model_latency: dict[str, float] = {}
     model_meta: dict[str, dict] = {}
     for key in model_keys:
-        spec = REPLAY_MODELS[key]
-        t0 = time.perf_counter()
-        model, device, err = _load_reranker(CrossEncoder, spec)
-        if model is None:
-            model_meta[key] = {"load_error": err}
-            print(f"[{key}] 로드 실패 — 건너뜀: {err}")
+        try:
+            device, cold_start_s, per_case, p50 = _score_with_reranker(CrossEncoder, REPLAY_MODELS[key], measured)
+        except Exception as e:  # noqa: BLE001 — 한 모델 실패가 나머지 모델·비모델 셀·출력을 죽이지 않게 격리
+            model_meta[key] = {"load_error": str(e)}
+            print(f"[{key}] 측정 실패 — 건너뜀: {e}")
             continue
-        cold_start_s = time.perf_counter() - t0
-        lat, per_case = [], {}
-        for rc in measured:
-            t0 = time.perf_counter()
-            raw = model.predict([(rc["query"], c.content) for c in rc["union"]])
-            lat.append(time.perf_counter() - t0)
-            per_case[rc["id"]] = {c.chunk_id: _sigmoid(float(s)) for c, s in zip(rc["union"], raw)}
         model_scores[key] = per_case
-        model_latency[key] = statistics.median(lat)
-        model_meta[key] = {"device": device, "cold_start_s": round(cold_start_s, 2),
-                           "latency_p50_s": round(model_latency[key], 4)}
-        print(f"[{key}] device={device} · cold {cold_start_s:.1f}s · p50 {model_latency[key] * 1000:.0f}ms")
+        model_latency[key] = p50
+        model_meta[key] = {"device": device, "cold_start_s": round(cold_start_s, 2), "latency_p50_s": round(p50, 4)}
+        print(f"[{key}] device={device} · cold {cold_start_s:.1f}s · p50 {p50 * 1000:.0f}ms")
 
     # ── 셀 채점: 셀별 재정렬 규칙으로 top_n 콘텐츠를 만들어 정답 최초 등장 순위·재현율을 기록. ──
     def score_cell(order_fn) -> dict:

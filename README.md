@@ -8,14 +8,14 @@
 
 - **에이전트 워크플로우**: 질문 재작성(rewrite) → 검색(search) → 리랭킹(rerank, 기본 비활성) → 품질 평가(evaluate) → 답변 생성(generate)의 메인 경로 5단계 파이프라인
 - **하이브리드 검색**: Dense(의미) 및 Sparse(키워드) 벡터를 결합한 고성능 검색
-- **선택적 리랭킹**: Cross-Encoder 재정렬을 옵션으로 지원한다. 실측에서 품질이 회귀해 기본 비활성(`USE_RERANKER=false`)이며, 필요 시 켤 수 있다.
+- **선택적 리랭킹**: Cross-Encoder 재정렬을 옵션으로 지원한다.
 - **구조화된 답변**: Pydantic을 활용한 정제된 답변 출력
 
 ## 🛠️ 설치 및 실행
 
 ### 빠른 기동 (install.sh / check.sh)
 
-서버 구성: **임베딩 모델(KURE-v1)은 TEI 컨테이너로 분리**하고, **앱 컨테이너 하나가 FastAPI API와 빌드된 React 프론트를 함께 서빙**합니다. PostgreSQL(pgvector)은 별도 데이터베이스 컨테이너입니다. 리랭커는 `USE_RERANKER` 기본 off라 서빙 대상이 아닙니다.
+서버 구성: **임베딩 모델(KURE-v1)은 TEI 컨테이너로 분리**하고, **앱 컨테이너 하나가 FastAPI API와 빌드된 React 프론트를 함께 서빙**합니다. PostgreSQL(pgvector)은 별도 데이터베이스 컨테이너입니다. 리랭커는 `USE_RERANKER` 기본 off라 서빙 대상이 아니며, 기본 이미지에도 포함하지 않습니다(opt-in 시 `--extra reranker`로 재빌드).
 
 ```bash
 cp .env.example .env   # 최초 1회, OPENAI_API_KEY 등 입력

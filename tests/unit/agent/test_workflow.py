@@ -32,19 +32,6 @@ def mock_searcher():
         ]
         yield mock_search
 
-@pytest.fixture(autouse=True)
-def mock_reranker():
-    """USE_RERANKER 기본값이 True가 되면, 그래프를 끝까지 도는 테스트가 rerank 노드에서 실제 Cross-Encoder(BAAI/bge-reranker-v2-m3, ~2.2GB)를 내려받아 로드하려 한다.
-    단위 테스트를 외부 모델 다운로드 없이 결정적으로 유지하려고 리랭커 호출(_rerank_impl)을 모킹한다.
-    rerank_score=0.9는 RERANK_THRESHOLD(0.5)를 넘겨, 리랭커 OFF일 때와 동일한 정상 통과 흐름을 재현한다.
-    """
-    with patch("src.agent.workflow._rerank_impl") as mock_rerank:
-        from src.models.schemas import RerankingResult
-        mock_rerank.side_effect = lambda query, chunks: [
-            RerankingResult(chunk=c, rerank_score=0.9) for c in chunks
-        ]
-        yield mock_rerank
-
 @pytest.mark.unit
 class TestWorkflowConstruction:
     """
@@ -120,12 +107,6 @@ class TestNormalFlowPath:
         final_state = workflow_app.invoke(initial_state)
         assert len(final_state["reranked_chunks"]) == len(final_state["retrieved_chunks"])  # 개수 일치
         assert hasattr(final_state["reranked_chunks"][0], "rerank_score")  # 점수 속성 확인
-
-    def test_reranker_active_by_default(self, workflow_app, initial_state, mock_reranker):
-        """#228: USE_RERANKER 기본값이 True이므로 rerank 노드가 실제 리랭커(_rerank_impl)를 호출한다.
-        기본값이 False로 되돌아가면 rerank 노드가 호출을 건너뛰어 이 단언이 실패한다 — 기본값 회귀 가드."""
-        workflow_app.invoke(initial_state)
-        mock_reranker.assert_called()
 
     def test_evaluate_returns_result(self, workflow_app, initial_state):
         """evaluate 노드에서 EvaluationResult 생성 검증"""

@@ -51,6 +51,7 @@ docs/measurements/rerank_replay_*.json
 docs/measurements/sparse_predicate_replay_*.json
 docs/measurements/sparse_keyword_replay_*.json
 docs/measurements/bm25_replay_*.json
+docs/measurements/rerank_tokenization_replay_result_*.json
 data/ontology
 data/md_data
 

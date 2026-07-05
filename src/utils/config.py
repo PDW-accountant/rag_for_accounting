@@ -28,12 +28,8 @@ MAX_REWRITE_COUNT: int = 3          # FUNC-004: CRAG 루프(평가 임계치 미
 MAX_HIL_COUNT: int = 5              # 워크플로우: Human-in-the-Loop 재작성 요청 최대 반복 횟수 (CRAG 루프와 분리)
 TOP_K_RETRIEVAL: int = 10           # FUNC-005: 1차 검색 반환 청크 수
 
-# Reranking Configuration — .env로 토글 가능
-# 운영 기본값을 리랭킹 ON으로 전환한다. 
-# 기존 기본 모델 ms-marco는 입력 512토큰 한도라 한국어 청크가 잘려 무용이므로, 한국어 지원 모델(bge-reranker-v2-m3)로 함께 바꾼다.
-# bge 모델은 실측에서 Hit@1 회귀가 확인됐다(4→2)
-# sparse recall 개선 후 재측정이 선행 과제다.
-USE_RERANKER: bool = _env_bool("USE_RERANKER", True)            # 리랭킹 모델 활성화 여부
+# Reranking Configuration — .env로 토글 가능. 기본은 OFF.
+USE_RERANKER: bool = _env_bool("USE_RERANKER", False)           # 리랭킹 모델 활성화 여부
 RERANK_THRESHOLD: float = _env_float("RERANK_THRESHOLD", 0.5)   # FUNC-006: 재정렬 후 필터링 임계값 (기본값: 중간 신뢰도)
 RERANK_MODEL: str = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")  # FUNC-006: Cross-Encoder 모델 식별자
 VECTOR_COLLECTION_NAME: str = "rag_for_accounting"  # FUNC-003: pgvector 컬렉션명

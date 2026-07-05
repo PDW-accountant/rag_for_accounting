@@ -1,12 +1,13 @@
-"""scripts/rerank_tokenization_replay.py 순수부 테스트 — 재정렬·가중 융합 헬퍼.
+"""scripts/rerank_tokenization_replay.py 순수부 테스트 — 재정렬·가중 융합·모델 스코어링 폴백.
 
 DB·코퍼스·리랭커 모델이 필요한 실측 실행부(run_measure)는 스크립트 self-check와 실측 리포트로 검증하고,
 여기서는 DB·모델 없이 도는 순수 함수만 고정한다.
+모델 스코어링은 가짜 CrossEncoder를 주입해 폴백 로직만 잰다.
 토큰화·BM25·대칭 RRF·판정 등 재사용 조각은 각 원본 하니스 테스트가 이미 덮으므로 여기서 재검하지 않는다.
 """
 import pytest
 
-from scripts.rerank_tokenization_replay import rerank_order, weighted_rrf
+from scripts.rerank_tokenization_replay import _score_with_reranker, rerank_order, weighted_rrf
 from src.models.schemas import RetrievedChunk
 
 pytestmark = pytest.mark.unit
@@ -53,3 +54,47 @@ class TestWeightedRrf:
     def test_respects_top_n(self):
         dense = [_chunk(f"d{i}") for i in range(5)]
         assert len(weighted_rrf([dense], [1.0], k=60, n=3)) == 3
+
+
+class _MpsFailsCE:
+    """가짜 CrossEncoder — 자동 디바이스(MPS)에서는 predict가 AcceleratorError로 죽고 CPU에서는 성공한다.
+
+    gte-multilingual이 MPS predict에서 out-of-bounds로 죽는 현상을 흉내내, CPU 폴백이 이를 잡는지 검증한다.
+    """
+
+    def __init__(self, name, max_length=None, trust_remote_code=False, device=None):
+        self.device = device or "mps:0"
+        self._fails = device is None  # 자동(=MPS)이면 predict 실패
+
+    def predict(self, pairs):
+        if self._fails:
+            raise RuntimeError("AcceleratorError: index out of bounds")
+        return [0.5] * len(pairs)
+
+
+class _AlwaysFailsCE:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def predict(self, pairs):
+        raise RuntimeError("boom")
+
+
+class TestScoreWithReranker:
+    """_score_with_reranker() — 모델을 로드·스코어링하되 MPS predict 실패 시 CPU로 폴백한다."""
+
+    def _measured(self):
+        return [{"id": "c1", "query": "질의", "union": [_chunk("a"), _chunk("b")]}]
+
+    def test_falls_back_to_cpu_when_mps_predict_fails(self):
+        # 자동 디바이스 predict가 죽으면 CPU로 재시도해 점수를 얻는다(gte류 구제 경로).
+        device, _cold, per_case, _p50 = _score_with_reranker(
+            _MpsFailsCE, {"name": "x", "max_length": 512, "trust_remote_code": True}, self._measured())
+        assert device == "cpu"
+        assert set(per_case["c1"]) == {"a", "b"}
+
+    def test_raises_when_all_devices_fail(self):
+        # 자동·CPU 모두 실패하면 예외를 올린다 — 호출부가 이 모델만 건너뛰고 나머지 측정을 잇도록.
+        with pytest.raises(Exception):
+            _score_with_reranker(
+                _AlwaysFailsCE, {"name": "x", "max_length": 512, "trust_remote_code": False}, self._measured())

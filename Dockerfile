@@ -20,9 +20,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-# --extra reranker: USE_RERANKER 기본값이 켜져 있어 리랭커(bge-reranker-v2-m3)를 이 컨테이너 안에서 직접 로드한다.
-# sentence-transformers+torch가 없으면 리랭커 import가 실패해 조용히 폴백하므로, 여기서 함께 설치한다.
-RUN uv sync --frozen --no-dev --extra reranker
+RUN uv sync --frozen --no-dev
 
 COPY src/ ./src/
 RUN mkdir -p ./data/raw
