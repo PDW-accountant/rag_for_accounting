@@ -15,8 +15,12 @@
 uv sync          # .venv 생성 + 의존성(dev 포함) 설치
 ```
 > 모든 Python 실행은 `uv run ...`로 한다(예: `uv run pytest`, `uv run python -m src.main ...`).
-> 기본 개발 경로는 Docker의 TEI 임베딩 서버를 사용한다. PDF 파싱 적재는 `uv sync --extra ingest`, `EMBEDDING_SERVER_URL` 없이 호스트 프로세스 안에서 KURE-v1을 직접 로드하는 경로는 `uv sync --extra local-embedding`으로 무거운 파서/모델 스택을 명시 설치한다.
-> 전체 테스트 실행에도 `--extra ingest`가 필요하다: `uv sync --extra ingest && uv run pytest`. `tests/unit/parse`가 `src/parse`(docling 사용)를 import하므로, extra 없이 `uv run pytest`를 돌리면 해당 7건이 `ModuleNotFoundError: docling_core`로 실패한다.
+>
+> 위 기본 설치는 가볍다 — 임베딩은 Docker의 TEI 서버에 맡기고, PDF 파싱·로컬 임베딩처럼 무거운 라이브러리는 설치하지 않는다. 두 경우는 추가로 설치해야 한다.
+> - PDF를 직접 파싱해 적재하려면: `uv sync --extra ingest` (Docling 파싱 라이브러리 추가)
+> - `EMBEDDING_SERVER_URL`을 쓰지 않고 호스트에서 KURE-v1을 직접 돌리려면: `uv sync --extra local-embedding`
+>
+> 테스트를 전부 돌리려면 `--extra ingest`가 먼저 필요하다: `uv sync --extra ingest && uv run pytest`. 이 extra 없이 기본 설치만 하고 테스트를 돌리면, `tests/unit/parse`가 Docling을 쓰는 `src/parse`를 가져오려다 실패해 7건이 `ModuleNotFoundError: docling_core`로 떨어진다.
 
 ## 3. 환경 변수
 ```bash
@@ -30,8 +34,6 @@ cp .env.example .env
 | `OPENAI_API_KEY` | LLM 노드 |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | DB 접속 |
 | `POSTGRES_HOST` / `POSTGRES_PORT` | 연결 대상 |
-
-> 기존 팀원 주의: 예전 `.env`에는 `POSTGRES_HOST=database`가 남아 있을 수 있다. `.env`는 개인 파일이라 템플릿(`.env.example`)이 `localhost`로 바뀌어도 자동 반영되지 않는다. 호스트에서 직접 실행한다면 `localhost`로 고쳐야 하며, 그대로 두면 `database` 호스트명 해석 실패로 DB 연결이 즉시 끊긴다.
 
 > 모델·임계치의 기본값 정본은 `src/utils/config.py`다(EMBEDDING_MODEL, OPENAI_MODEL, RRF_K, TOP_K_RETRIEVAL ...). 리랭커(USE_RERANKER·RERANK_THRESHOLD·RERANK_MODEL)와 임베딩 실행 자원(EMBEDDING_DEVICE 등)은 `.env`로 override할 수 있다 — 키 목록은 `.env.example` 참조.
 
