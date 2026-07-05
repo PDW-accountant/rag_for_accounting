@@ -19,7 +19,7 @@ class ClauseRow:
     rank: int        # 1-based 검색 순위
     chapter: str     # 장 번호(metadata.chapter), 결측 시 "?"
     node_id: str     # 온톨로지 노드 식별자(metadata.ontology_node_id), 결측 시 ""
-    score: float     # 검색 점수 = chunk.score(RRF 하이브리드). rerank_score는 no-op(1.0)라 쓰지 않음
+    score: float     # 검색 점수 = chunk.score(RRF 하이브리드). USE_RERANKER=false일 때는 rerank_score가 전부 1.0이라 변별력이 없어 이 값을 대신 씀
     content: str     # 조항 본문 전문
     document_id: str = ""          # 원문 문서 식별자(chunk.document_id) — 뷰어의 PDF 서빙 경로에 사용(#196)
     page_start: int | None = None  # 원본 PDF 페이지 범위(#196 백필 metadata) — 미백필/미매칭이면 None
@@ -30,12 +30,13 @@ def build_clause_rows(
     reranked: list[RerankingResult] | None,
     top_n: int = DEFAULT_TOP_N,
 ) -> list[ClauseRow]:
-    """reranked_chunks를 검색 순위 상위 top_n개의 ClauseRow로 변환한다.
+    """reranked를 검색 순위 상위 top_n개의 ClauseRow 리스트로 변환한다.
 
     - 입력 순서를 검색 순위로 간주한다(rerank 노드가 점수 내림차순으로 정렬해 반환).
     - 점수는 chunk.score(RRF/하이브리드)를 노출한다.
     - USE_RERANKER=false에서는 rerank_score가 전부 1.0이라 변별력이 없기 때문이다.
-    - 리랭커를 켜면 이 점수 출처/라벨을 rerank_score로 전환한다.
+    - 리랭커를 켜도 이 함수는 여전히 chunk.score만 노출한다.
+      TODO: rerank_score로 점수 출처를 전환하는 로직은 아직 구현돼 있지 않다.
     - top_n<=0이거나 입력이 비면 빈 리스트를 반환한다.
     """
     if not reranked or top_n <= 0:

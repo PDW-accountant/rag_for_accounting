@@ -6,8 +6,9 @@
      온톨로지 그래프 → 청킹(FUNC-002/003) → pgvector 적재(FUNC-003)
      · 기본 소스: 미리 빌드된 온톨로지 JSON(data/ontology/*.json)
      · --pdf/--md 지정 시: 파싱(FUNC-001) → 온톨로지 빌드(FUNC-002) → 청킹 → 적재까지 전체 경로
-     · 적재 대상 테이블은 검색기(searcher.py)가 조회하는 CHUNKS_TABLE("chunks")로 고정해
-       적재와 검색이 동일 테이블을 공유하도록 한다.
+     · 적재 대상 테이블은 기본값으로 검색기가 조회하는 CHUNKS_TABLE("chunks")를 써서 적재와 검색이
+       같은 테이블을 보게 한다. --collection으로 다른 테이블을 지정하면 이 전제가 깨지므로, 특별한
+       이유가 없으면 기본값을 그대로 쓴다.
 
   2. query — 질의 경로
      질의 → LangGraph 워크플로(rewrite→search→rerank→evaluate→generate, FUNC-004~009)
@@ -74,7 +75,10 @@ def _build_graph_from_source(args):
 def _index_graph(
     graph, source_path: str | None, collection: str, *, clause_level: bool, max_tokens: int
 ) -> dict:
-    """온톨로지 그래프 한 개를 청킹 후 적재하고 IndexingResult를 dict로 반환한다."""
+    """온톨로지 그래프 한 개를 청킹 후 적재하고 IndexingResult를 dict로 반환한다.
+
+    단, 청킹 결과가 비어 있으면 적재를 건너뛰고 status="failed"인 dict를 직접 만들어 반환한다.
+    """
     from src.db.ontology.chunker import chunk_graph
     from src.db.vector_store import index_documents
 
