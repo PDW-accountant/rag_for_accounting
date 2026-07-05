@@ -23,7 +23,8 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-# 문단 번호(접두어/부록/의N 포함)와 범위·절·장 표기. resolver/semcheck와 동일 규칙.
+# 문단 번호(접두어/부록/의N 포함)와 범위·절·장 표기. resolver.py의 _PARA_RE와 유사하되,
+# 이 파일은 "사례" 접두어도 추가로 인정한다.
 _PARA = r'(?:사례|실|결)?\d+\.(?:[A-Z]\d+|\d+)(?:의\d+)?'
 PARA_RE = re.compile(_PARA)
 SEC_RE = re.compile(r'제\s*(\d+)\s*절')
@@ -45,7 +46,7 @@ README = {
     "exact_duplicate": "같은 from/to/문단/type/source_text 중복. decision: dedup(1개만 유지)|keep",
     "cross_chapter_residual": "제N장 없이 문단번호/절번호만 적힌 타 장 참조(번호 앞자리=장) 또는 같은장 파싱누락 의심. decision: link:gaap-chN | parse_fix | keep",
     "suggested": "Claude 권장 판정+근거. decision이 비어있으면 이 값을 따를지 검토. decision에 직접 최종값 기입.",
-    "has_condition_selfloop_optional": "외부 대상 없는 HAS_CONDITION 17건은 자기루프로 자동 보존됨(검토 불필요). 그중 외부 조항을 가리키는 건만 외부 링크 승격 선택지로 남김. decision: link:<대상> | keep(자기루프 유지)",
+    "has_condition_selfloop_optional": "외부 대상 없는 HAS_CONDITION은 자기루프로 자동 보존됨(검토 불필요, 건수는 실행마다 달라질 수 있음). 그중 외부 조항을 가리키는 건만 외부 링크 승격 선택지로 남김. decision: link:<대상> | keep(자기루프 유지)",
 }
 
 CATEGORIES = ['prefix_dropped', 'target_unjustified', 'type_conflict',

@@ -111,7 +111,7 @@ class EdgeCandidate(BaseModel):
 def extract_edges(
     subsection_id: str,   # 컨텍스트 제공용 (LLM 프롬프트에 포함)
     title: str,           # 컨텍스트 제공용
-    content: str,         # Subsection 전체 텍스트 (LLM이 맥락 파악에 사용)
+    content: str,         # 소절(Subsection) 또는 절 직속 문단(Section) 전체 텍스트
     candidates: list[str],  # edge_detector가 골라낸 후보 줄 목록
 ) -> list[EdgeCandidate]:
     """후보 문장을 LLM에 보내 엣지를 추출한다.
@@ -133,7 +133,7 @@ def extract_edges(
         + "\n".join(f"- {c}" for c in candidates)
     )
 
-    # _client.chat.completions.create: OpenAI SDK 메서드 체인
+    # client.chat.completions.create: OpenAI SDK 메서드 체인
     # .chat        : 채팅 기능 그룹
     # .completions : 텍스트 완성(completion) 기능
     # .create(...) : OpenAI 서버로 HTTP 요청 전송, LLM 응답 반환
@@ -144,7 +144,7 @@ def extract_edges(
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},  # JSON만 반환하도록 강제
-        temperature=0,  # 0: 항상 확률 최高 토큰 선택 → 같은 입력이면 동일한 출력
+        temperature=0,  # 0: 항상 확률 최고 토큰 선택 → 같은 입력이면 동일한 출력
                         # 1: 무작위성 개입 → 같은 입력이어도 매번 다른 표현 가능
     )
 
@@ -154,7 +154,7 @@ def extract_edges(
     # response 자체는 리스트가 아닌 객체이므로 choices를 반드시 거쳐야 한다.
     # json.loads()          : JSON 문자열 → 파이썬 딕셔너리로 변환
     raw = json.loads(response.choices[0].message.content)
-    # LLM 호출은 노드(Subsection) 단위로 수행되므로 하나의 응답에 엣지가 여러 개 포함될 수 있다.
+    # LLM 호출은 Subsection 또는 Section(H3 없이 H2 직속 문단이 있는 경우) 단위로 수행되므로 하나의 응답에 엣지가 여러 개 포함될 수 있다.
     # raw.get("edges", [])  : 엣지 딕셔너리 목록. edges 키가 없으면 빈 리스트 반환
     # EdgeCandidate(**item) : 딕셔너리를 키워드 인자로 풀어서 Pydantic 객체로 변환
     #                         ** 없이 item을 통째로 넘기면 에러 발생

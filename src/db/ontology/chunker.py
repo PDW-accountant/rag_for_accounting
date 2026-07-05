@@ -67,7 +67,7 @@ def _hard_split(text: str, max_tokens: int, count: Callable[[str], int]) -> list
     """문장으로도 나눌 수 없는 한 덩어리를 문자 단위 이분탐색으로 강제 분할한다.
 
     토큰 한도 이하가 되는 최대 길이의 앞부분을 이분탐색으로 찾아 잘라내고, 남은 뒷부분을 재귀적으로 처리한다.
-    의미 경계를 무시하는 최후의 fallback이므로 한 문단/문장이 단독으로 8192 토큰을 넘는 극단적 입력에서만 호출된다.
+    의미 경계를 무시하는 최후의 fallback이므로 한 문단/문장이 단독으로, 호출 시 주어진 max_tokens(기본 CHUNK_MAX_TOKENS)을 넘는 입력에서만 호출된다.
     """
     result: list[str] = []
     remaining = text
