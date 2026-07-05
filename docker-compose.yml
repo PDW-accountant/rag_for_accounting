@@ -1,0 +1,61 @@
+services:
+  database:
+    build:
+      context: .
+      dockerfile: db.Dockerfile
+    container_name: accounting_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-accounting_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-accounting_password}
+      POSTGRES_DB: ${POSTGRES_DB:-accounting_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    platform: linux/amd64
+    container_name: accounting_embedding
+    command: ["--model-id", "nlpai-lab/KURE-v1"]
+    ports:
+      - "8080:80"
+    volumes:
+      - tei_cache:/data
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: accounting_app
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-accounting_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-accounting_password}
+      POSTGRES_DB: ${POSTGRES_DB:-accounting_db}
+      EMBEDDING_SERVER_URL: http://embedding:80
+      FRONTEND_DIST_DIR: /app/frontend/dist
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/raw:/app/data/raw:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      embedding:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  tei_cache:

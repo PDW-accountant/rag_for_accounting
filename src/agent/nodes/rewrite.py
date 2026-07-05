@@ -1,0 +1,238 @@
+# FUNC-004: 질의 재작성 노드
+#
+# 처리 순서:
+#   1. Classify & Select — 회계 여부 + 전략을 단일 LLM 호출로 판단
+#      - bypass  : 비회계 질의 조기 차단
+#      - stepback: 회사명·금액·날짜가 포함된 과도하게 구체적인 질의
+#      - decompose: 두 가지 이상의 독립적인 주제를 포함한 복합 질의
+#      - hyde    : 그 외 일반 질의 (기본값)
+#   2. 전략별 LLM 호출 → search_queries 생성
+#      - hyde     : [원문, 가상답변]
+#      - decompose: [원문, 서브쿼리1, ...]
+#      - stepback : [원문, 추상화쿼리]
+#   3. LLM 실패 시 원문만 반환 (Bypass)
+
+import json
+import re
+
+from src.agent.prompts import (
+    CLASSIFY_STRATEGY_PROMPT,
+    DECOMPOSE_PROMPT,
+    HYDE_PROMPT,
+    STEPBACK_PROMPT,
+)
+from src.models.schemas import RewrittenQuery
+from src.models.state import ErrorLog, GraphState
+from src.utils.config import OPENAI_MODEL
+from src.utils.exception import LLMAPIConnectionError
+from src.utils.llm_client import client
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+def _record_llm_failure(fn_name: str, exc: Exception, error_logs: list[ErrorLog] | None) -> None:
+    """rewrite 헬퍼의 LLM 호출 실패를 관찰 가능하게 만든다.
+
+    - 항상 경고 로그를 남긴다(silent 강등 방지). 예외 클래스명을 메시지에 포함하고 exc_info=True로 스택트레이스를 보존하므로 연결 실패와 JSON 파싱 실패를 구분할 수 있다.
+    - error_logs가 주어지면 CM-002 항목을 누적해 상태로 전파한다. 
+        error_type은 CM-002 단일 버킷으로 두되(소비자는 관측 1곳뿐·라우팅 미사용), 세부 원인은 메시지·로그로 구분한다.
+        헬퍼는 폴백(원문·기본 전략)으로 정상 복귀하므로 예외를 재전파하지는 않는다.
+    """
+    logger.warning(
+        "%s LLM 호출 실패[%s] — 폴백 적용: %s", fn_name, type(exc).__name__, exc, exc_info=True
+    )
+    if error_logs is not None:
+        error_logs.append(
+            LLMAPIConnectionError(
+                f"{fn_name} 실패[{type(exc).__name__}]: {exc}", node="rewrite"
+            ).to_error_log()
+        )
+
+
+_STANDARD_LABEL: dict[str, str] = {
+    "GAAP":  "일반기업회계기준(K-GAAP)만 적용",
+    "KIFRS": "한국채택국제회계기준(K-IFRS)만 적용",
+    "ALL":   "K-GAAP 및 K-IFRS 모두 적용",
+}
+
+
+def _standard_context(standard_filter: str) -> str:
+    return _STANDARD_LABEL.get(standard_filter, _STANDARD_LABEL["ALL"])
+
+
+def _strip_markdown(content: str | None) -> str:
+    if content is None:
+        return ""
+    # LLM이 JSON을 마크다운 코드 블록(```json ... ```)으로 감싸 반환하는 경우 래퍼 제거
+    # (?:json)? — "json" 언어 태그가 있어도 없어도 매칭 (```json / ``` 둘 다 처리)
+    # (?:...) 는 비캡처 그룹으로, re.sub이 매칭된 전체(```json 포함)를 빈 문자열로 교체
+    return re.sub(r"^```(?:json)?\s*|\s*```$", "", content.strip())
+
+
+def classify_and_select(query: str, error_logs: list[ErrorLog] | None = None) -> tuple[bool, str, float]:
+    """회계 여부·검색 전략·분류 신뢰도를 단일 LLM 호출로 판단한다. 실패 시 (True, 'hyde', 0.0)로 폴백."""
+    try:
+        resp = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "user", "content": CLASSIFY_STRATEGY_PROMPT.format(query=query)}],  # {query} 플레이스홀더에 실제 질의 주입
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+        data = json.loads(_strip_markdown(resp.choices[0].message.content)) # LLM의 json 출력물을 딕셔너리로 변환
+        raw = data.get("is_accounting", True)
+        # LLM이 boolean 대신 문자열 "True"/"False"를 반환하는 경우 명시적 변환
+        # str(raw).lower() == "true" → "true"면 True, 아니면 False 반환
+        is_accounting = raw if isinstance(raw, bool) else str(raw).lower() == "true"
+        strategy = data.get("strategy", "hyde")
+        # LLM이 보고한 분류 신뢰도. 비회계 조기 종료 시 FinalResponse.confidence_score로 전달되어
+        # 운영 단계에서 분류 경계가 모호한(낮은 신뢰도) 케이스를 추출·분석하는 데 활용된다.
+        confidence = _coerce_confidence(data.get("confidence"))
+        return is_accounting, strategy, confidence
+    except Exception as e:
+        _record_llm_failure("classify_and_select", e, error_logs)
+        return True, "hyde", 0.0
+
+
+def _coerce_confidence(raw) -> float:
+    """LLM이 반환한 confidence 값을 0.0~1.0 범위의 float로 안전하게 변환한다. 실패 시 0.0."""
+    try:
+        return min(1.0, max(0.0, float(raw)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _feedback_clause(feedback: str | None) -> str:
+    """HIL 사용자 피드백을 프롬프트에 덧붙일 제약 문구로 변환한다. 피드백이 없으면 빈 문자열."""
+    if not feedback:
+        return ""
+    return (
+        f"\n\n[사용자 추가 요청]\n{feedback}\n"
+        "위 추가 요청을 반드시 반영하여 작성하세요."
+    )
+
+
+def apply_hyde(query: str, standard_filter: str, feedback: str | None = None,
+               error_logs: list[ErrorLog] | None = None) -> list[str]:
+    """원문 + 가상 답변을 반환한다. LLM 실패 시 원문만 반환."""
+    try:
+        resp = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "user", "content": HYDE_PROMPT.format(
+                query=query, standard_context=_standard_context(standard_filter)
+            ) + _feedback_clause(feedback)}],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+        hypo = json.loads(_strip_markdown(resp.choices[0].message.content)).get("hypothetical_answer", "")
+        if hypo:
+            return [query, hypo]
+    except Exception as e:
+        _record_llm_failure("apply_hyde", e, error_logs)
+    return [query]
+
+
+def apply_decompose(query: str, standard_filter: str, feedback: str | None = None,
+                    error_logs: list[ErrorLog] | None = None) -> list[str]:
+    """원문 + 서브쿼리들을 반환한다. LLM 실패 시 원문만 반환."""
+    try:
+        resp = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "user", "content": DECOMPOSE_PROMPT.format(
+                query=query, standard_context=_standard_context(standard_filter)
+            ) + _feedback_clause(feedback)}],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+        subs = json.loads(_strip_markdown(resp.choices[0].message.content)).get("sub_queries", [])
+        if subs:
+            return [query] + subs
+    except Exception as e:
+        _record_llm_failure("apply_decompose", e, error_logs)
+    return [query]
+
+
+def apply_stepback(query: str, standard_filter: str, feedback: str | None = None,
+                   error_logs: list[ErrorLog] | None = None) -> list[str]:
+    """원문 + 추상화된 원칙 쿼리를 반환한다. LLM 실패 시 원문만 반환."""
+    try:
+        resp = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "user", "content": STEPBACK_PROMPT.format(
+                query=query, standard_context=_standard_context(standard_filter)
+            ) + _feedback_clause(feedback)}],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+        abstract = json.loads(_strip_markdown(resp.choices[0].message.content)).get("abstract_query", "")
+        if abstract:
+            return [query, abstract]
+    except Exception as e:
+        _record_llm_failure("apply_stepback", e, error_logs)
+    return [query]
+
+
+_STRATEGY_FN = {
+    "hyde":      apply_hyde,
+    "decompose": apply_decompose,
+    "stepback":  apply_stepback,
+}
+
+
+def rewrite_query(state: GraphState) -> GraphState:
+    """rewrite 노드 진입점. state를 받아 search_queries를 채운 뒤 반환한다."""
+    # !TODO: 평가 임계치 미달로 CRAG 루프를 통해 재진입할 때의 처리 방식 결정 필요.
+    #        - classify_and_select는 재호출 불필요 (질의·is_accounting 불변) → state 값 재사용
+    #        - 전략 교체 여부: 동일 전략 재시도 vs. hyde→decompose→stepback 순 에스컬레이션
+    #        - rewrite_count 증가 시점: 이 함수 진입 직후 state.rewrite_count += 1
+
+    # 빈 질의 가드: 공백만 있거나 빈 문자열이면 LLM 분류 호출이 무의미하므로 즉시 차단한다.
+    # outer try 블록보다 앞에 두어 ValueError가 error_logs로 흡수되지 않고 호출자에게 전파되도록 한다.
+    if not state.original_query.strip():
+        raise ValueError("original_query가 비어 있습니다.")
+
+    # HIL 루프에서 주입된 사용자 피드백을 사용 즉시 회수·초기화한다.
+    # (다음 CRAG/HIL 루프에서 이전 피드백이 잘못 재사용되는 것을 방지)
+    feedback = state.human_feedback
+    state.human_feedback = None
+
+    try:
+        is_accounting, strategy, confidence = classify_and_select(state.original_query, state.error_logs)
+        state.is_accounting_query = is_accounting
+        state.classification_confidence = confidence
+
+        if not is_accounting:
+            state.rewritten_query = RewrittenQuery(
+                original_query=state.original_query,
+                strategy="bypass",
+                search_queries=[state.original_query],
+            )
+            return state
+
+        # 분류기가 _STRATEGY_FN에 없는 전략(프롬프트가 허용하는 'bypass' 등)을 반환할 수 있으므로 암묵적 KeyError에 의존하지 않고 명시적으로 검증한다.
+        # 미정의 전략은 아래 outer except가 bypass로 강등한다.
+        if strategy not in _STRATEGY_FN:
+            raise ValueError(f"분류기가 미정의 전략을 반환: {strategy!r}")
+        queries = _STRATEGY_FN[strategy](state.original_query, state.standard_filter, feedback, state.error_logs)
+        state.rewritten_query = RewrittenQuery(
+            original_query=state.original_query,
+            strategy=strategy,
+            search_queries=queries,
+        )
+
+    except Exception as e:
+        # 백스톱(삭제 금지): 위 명시 검증의 ValueError 및 분류·전략 적용 중 예기치 못한 예외를 graceful bypass DEGRADE로 강등하고 error_logs에 적재한다. 
+        # inner 헬퍼 폴백과 중복이 아니라, 헬퍼가 못 잡는 디스패치/구성 오류의 유일한 error_logs 적재처다.
+        state.rewritten_query = RewrittenQuery(
+            original_query=state.original_query,
+            strategy="bypass",
+            search_queries=[state.original_query],
+        )
+        state.error_logs.append({
+            "timestamp": "",
+            "node": "rewrite",
+            "error_type": type(e).__name__,
+            "message": str(e),
+        })
+
+    return state

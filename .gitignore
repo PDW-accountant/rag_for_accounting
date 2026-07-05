@@ -1,0 +1,53 @@
+.claude/*
+.claude
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 개인 학습 노트
+*개인용*.md
+
+# 벤치마크 측정 산출물 — 실행 시마다 누적되므로 추적 제외.
+# 비회귀 기준값 tests/integration/benchmark_floor.json 은 추적한다.
+docs/measurements/benchmark_result_*.md
+docs/measurements/baseline_*.json
+docs/measurements/rerank_replay_*.json
+docs/measurements/sparse_predicate_replay_*.json
+docs/measurements/sparse_keyword_replay_*.json
+docs/measurements/bm25_replay_*.json

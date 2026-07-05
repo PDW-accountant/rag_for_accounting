@@ -1,0 +1,254 @@
+# 회계기준서 GraphRAG 아키텍처 설계서
+
+> Docling + EdgeQuake + LangGraph 기반 회계기준서 RAG 시스템
+>
+> 작성일: 2026-03-21
+> 상태: ⚠️ SUPERSEDED — Apache AGE/EdgeQuake/GraphRAG 전제의 초기 설계. AGE는 v1.0에서 제거되고 **pgvector + BM25 하이브리드**로 대체되었습니다. 현행 아키텍처는 [architecture_overview.md](../architecture/architecture_overview.md)를 참조하세요. 이 문서는 초기 설계 의도 기록용으로만 보존합니다.
+
+---
+
+## 1. 프로젝트 개요
+
+### 목적
+K-IFRS 회계기준서(70개, 평균 250페이지)를 대상으로 한 GraphRAG 시스템 구축.
+회계사/감사인이 실무에서 정확한 기준서 조항과 상호참조를 검색할 수 있도록 한다.
+
+### 대상 사용자
+- **1차**: 회계사/감사인 — "이 거래에 적용할 기준서와 관련 예외 조항을 찾아줘"
+- **2차**: 개발자 포트폴리오 — 기술 깊이 시연
+
+### 대상 문서
+- 형식: PDF, HTML, Word, HWP (혼합)
+- 규모: 70개 문서, 평균 250페이지 (총 ~17,500페이지)
+- 특성: 계층 구조(장/절/문단), 상호참조, 테이블, 수식, 조건부 예외 조항
+
+---
+
+## 2. 전체 아키텍처
+
+```
+[회계기준서 문서들 (PDF/HTML/Word/HWP)]
+        │
+        ▼
+┌───────────────────┐
+│     Docling        │  정밀 파싱 (테이블/수식/계층구조)
+└───────┬───────────┘
+        │ 구조화된 텍스트 + 메타데이터
+        ▼
+┌───────────────────────────────┐
+│  Document Preprocessor        │
+│  ├─ 회계 도메인 엔티티 매핑         │  EdgeQuake 엔티티 타입 커스터마이징
+│  ├─ 상호참조 어노테이션            │  "제1028호 문단15" → 관계 힌트
+│  └─ 청크 전처리                  │  Docling 계층 보존 → EdgeQuake 입력
+└───────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────┐
+│       EdgeQuake                │
+│  ┌─ Apache AGE (그래프DB)     │  엔티티/관계 자동 추출 + 저장
+│  ├─ pgvector (벡터DB)         │  청크 임베딩 + 유사도 검색
+│  ├─ 6가지 쿼리 모드           │  local/global/hybrid 등
+│  └─ 커뮤니티 감지             │  주제별 기준서 클러스터링
+└───────┬───────────────────────┘
+        │ 검색 결과 (그래프 + 벡터)
+        ▼
+┌───────────────────────────────┐
+│       LangGraph                │  Agentic 오케스트레이션
+│  ├─ Query Rewriter            │  자연어 → 회계 용어 변환
+│  ├─ EdgeQuake Router          │  쿼리 유형별 모드 선택
+│  ├─ CRAG Gate                 │  품질 게이트 (검색 충분한가?)
+│  └─ Answer Generator          │  구조화 응답 + 인용
+└───────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────┐
+│  PydanticAI        │  타입 안전 구조화 출력 (인용, 페이지번호)
+└───────────────────┘
+```
+
+### 핵심 설계 결정
+
+- **Docling** — 회계 문서의 테이블/수식을 정밀 파싱 (EdgeQuake 자체 pdfium보다 우수)
+- **EdgeQuake** — 그래프 구축 + 벡터 저장 + 하이브리드 검색을 하나의 엔진으로 통합
+- **PostgreSQL 통합** — Apache AGE(그래프) + pgvector(벡터)를 단일 DB로 운영
+- **LangGraph** — EdgeQuake 위에서 CRAG 품질 게이트와 멀티스텝 에이전트 제어
+- **PydanticAI** — 최종 응답의 구조화 출력
+
+### 그래프 DB 관련 참고
+- Apache AGE는 Neo4j 대비 그래프 전용 인덱싱, 탐색 최적화가 부족
+- 현재 규모(70개 문서, 1-3홉 탐색)에서는 충분
+- 향후 그래프 검색 성능이 부족하면 Neo4j로 교체 가능 (Cypher 호환)
+
+---
+
+## 3. Docling 파싱 파이프라인
+
+### 왜 Docling인가
+- EdgeQuake의 pdfium은 단순 텍스트 추출 → 회계 문서의 테이블, 수식, 계층 구조를 잃음
+- Docling은 문서의 레이아웃을 이해하고 테이블을 구조화된 데이터로 변환
+
+### 파이프라인 흐름
+
+```mermaid
+graph TD
+    A[원본 문서 PDF/HWP] -->|FUNC-001| B(Docling / LlamaParse)
+    B --> C[텍스트, 메타데이터, 레이아웃 추출]
+    
+    subgraph FUNC-002 [온톨로지 빌드]
+        C --> D{엔티티/관계 추출}
+        D -->|회계기준, 개념, 예외| E[(Apache AGE 그래프 DB)]
+    end
+    
+    subgraph Ontology Bridge
+        C --> F[계층적 청킹 Hierarchical Chunking]
+        F --> G[청크-노드 매핑 chunk→node]
+        G -.->|참조| E
+    end
+    
+    subgraph FUNC-003 [벡터 임베딩 및 적재]
+        G --> H[텍스트 임베딩 생성]
+        H --> I[(pgvector 벡터 DB)]
+    end
+    
+    E --> J((Ingest 완료))
+    I --> J
+```
+
+### 핵심 포인트
+- Docling이 **문서의 물리적 구조**(테이블, 수식, 레이아웃)를 처리
+- 전처리기가 **도메인 특화 정보**(상호참조, 메타데이터)를 추출
+- EdgeQuake가 **의미적 관계**(엔티티, 관계)를 LLM으로 추출하고 저장
+
+---
+
+## 4. 검색 및 응답 파이프라인
+
+```mermaid
+stateDiagram-v2
+    [*] --> rewrite
+    
+    state rewrite {
+        [*] --> Classify
+        Classify --> IsAccounting: is_accounting_query?
+        IsAccounting --> NonAccounting: False (조기 종료)
+        IsAccounting --> RewriteQuery: True
+        RewriteQuery --> HIL_Interrupt: interrupt()
+        HIL_Interrupt --> [*]: Approved
+        HIL_Interrupt --> RewriteQuery: Revised
+    }
+    
+    rewrite --> END: NonAccounting
+    rewrite --> search: Approved
+    
+    state search {
+        [*] --> HybridSearch
+        HybridSearch --> RRF: Vector + Keyword 결과
+        RRF --> [*]: RRF 병합
+    }
+    
+    search --> rerank
+    
+    state rerank {
+        [*] --> ThresholdCheck
+        ThresholdCheck --> Pass: Score >= 임계값
+        ThresholdCheck --> Fail: Score < 임계값
+    }
+    
+    rerank --> evaluate: Pass (needs_reretrieval=False)
+    rerank --> route_after_evaluate: Fail (needs_reretrieval=True)
+    
+    state evaluate {
+        [*] --> CRAG_Check
+        CRAG_Check --> Relevant: Context 충분
+        CRAG_Check --> NeedsExternal: Context 부족
+    }
+    
+    evaluate --> route_after_evaluate
+    
+    state route_after_evaluate <<choice>>
+    route_after_evaluate --> rewrite: needs_reretrieval or needs_external\n(if rewrite_count < MAX)
+    route_after_evaluate --> generate: else
+    
+    generate --> END
+    END --> [*]
+```
+
+### 핵심 설계 결정
+- **Query Rewriter가 EdgeQuake 쿼리 모드까지 결정** — 단순 조항 질의는 local, 개념적 질의는 global, 복합 질의는 hybrid
+- **CRAG 루프는 최대 2회 재시도** — 무한 루프 방지, 2회 실패 시 부분 결과 + 안내 메시지 반환
+- **PydanticAI로 응답 스키마 강제** — 인용 없는 답변이 나올 수 없도록 타입 레벨에서 보장
+
+---
+
+## 5. 회계 도메인 커스터마이징
+
+> 초기 설계이며 반복적으로 업데이트 예정
+
+### 엔티티 타입
+
+| EdgeQuake 기본 | 회계 도메인 매핑 | 예시 |
+|---------------|-----------------|------|
+| concept | **회계기준** | K-IFRS 1116, K-IFRS 1028 |
+| concept | **회계개념** | 사용권자산, 감가상각, 공정가치 |
+| event | **회계처리** | 최초인식, 후속측정, 제거 |
+| organization | **규제기관** | 금융감독원, IASB |
+| product | **재무제표항목** | 재무상태표, 손익계산서 |
+| technology | 사용 안 함 | - |
+| location | 사용 안 함 | - |
+
+### 관계(엣지) 타입
+
+```
+[기준서 1116] ──참조──→ [기준서 1028]
+[사용권자산] ──적용──→ [감가상각]
+[리스부채]  ──예외──→ [단기리스]
+[최초인식]  ──후속──→ [후속측정]
+[문단 31]   ──소속──→ [제5장 사용권자산]
+```
+
+주요 관계 유형:
+- **참조** — 기준서 간 상호참조
+- **소속** — 계층 구조 (장 > 절 > 문단)
+- **적용** — 개념 → 회계처리 연결
+- **예외** — 조건부 예외 조항
+- **후속** — 처리 순서/단계
+
+### EdgeQuake 프롬프트 커스터마이징
+- 엔티티 타입을 위 매핑으로 제한
+- "제XXXX호", "문단 XX" 패턴을 우선 엔티티로 추출하도록 지시
+- 예외 조항("다만", "제외하고", "적용하지 아니한다")을 관계로 명시 추출
+
+---
+
+## 6. 기술 스택
+
+| 레이어 | 기술 | 역할 |
+|--------|------|------|
+| 문서 파싱 | **Docling** | PDF/HTML/Word/HWP → 구조화된 텍스트 |
+| Graph-RAG 엔진 | **EdgeQuake** (Rust) | 그래프 구축 + 벡터 저장 + 하이브리드 검색 |
+| 그래프 DB | **Apache AGE** (PostgreSQL 확장) | 엔티티/관계 저장, Cypher 쿼리 |
+| 벡터 DB | **pgvector** (PostgreSQL 확장) | 임베딩 저장, 유사도 검색 |
+| 오케스트레이션 | **LangGraph** (Python) | Agentic 워크플로우, CRAG 루프 |
+| 구조화 출력 | **PydanticAI** (Python) | 타입 안전 응답 생성 |
+| LLM | **OpenAI / Ollama** | 엔티티 추출, 쿼리 리라이팅, 응답 생성 |
+| 패키지 관리 | **uv** | Python 의존성 |
+| 컨테이너 | **Docker Compose** | EdgeQuake + PostgreSQL 통합 배포 |
+
+---
+
+## 7. 개발 순서
+
+1. Docker로 EdgeQuake + PostgreSQL 환경 구축
+2. Docling 파싱 파이프라인 구현
+3. EdgeQuake 도메인 커스터마이징 (엔티티/관계 타입, 프롬프트)
+4. LangGraph 오케스트레이션 구현 (Query Rewriter → EdgeQuake → CRAG → Answer)
+5. PydanticAI 응답 스키마 구현
+6. 테스트 및 평가
+
+---
+
+## 변경 이력
+
+| 날짜 | 내용 |
+|------|------|
+| 2026-03-21 | 초기 설계 작성 |
