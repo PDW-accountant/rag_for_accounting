@@ -91,9 +91,10 @@ API_CORS_ORIGINS: list[str] = [
     if origin.strip()
 ]
 
-# 원본 PDF 소재 디렉토리 — 페이지 백필(scripts/backfill_page_map.py)과 PDF 서빙이 공유하는 BYO 규약.
+# 원본 PDF 소재 디렉토리 — 페이지 백필과 PDF 서빙이 공유하는 규약.
+# 저작권 문제로 원문 PDF를 저장소에 포함하지 않고, 사용자가 직접 준비해 이 디렉토리에 두는 방식을 쓴다.
 # 규약(resolve_pdf_path): {PDF_DIR}/{document_id}.pdf 우선, 없으면 제N장*.pdf 글롭(현행 data/raw_data 호환).
 PDF_DIR: str = os.getenv("PDF_DIR", "data/raw_data")
 
-# 시간대(에러 로그 기록 시 한국 표준시(UTC+9)를 기준으로 하기 위함)
+# 시간대 — 일반 로그와 오류 기록(ErrorLog.timestamp) 모두 한국 표준시(KST, UTC+9) 기준으로 통일하기 위함
 KST = timezone(timedelta(hours=9))

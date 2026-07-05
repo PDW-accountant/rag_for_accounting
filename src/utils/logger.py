@@ -12,7 +12,7 @@ class _KSTFormatter(logging.Formatter):
 
 def get_logger(name: str) -> logging.Logger:
     """표준 로거 반환. 핸들러가 없으면 StreamHandler를 자동 추가"""
-    # 동일한 이름의 로거를 재상용함으로써 핸들러 중복 등록을 방지
+    # 동일한 이름의 로거를 재사용함으로써 핸들러 중복 등록을 방지
     # 외부 로그 시스템과 연동할 때, 로거 이름을 지정하여 로그를 분류할 수 있음
     logger = logging.getLogger(name)
     if not logger.handlers:
@@ -25,7 +25,11 @@ def get_logger(name: str) -> logging.Logger:
     return logger
 
 def log_execution_time(func):
-    """함수 실행 시간을 측정하여 GraphState.metadata에 기록하는 데코레이터"""
+    """
+    TODO: 함수 실행 시간을 측정해 GraphState.metadata에 기록할 데코레이터
+    아직 미구현이라 호출하면 항상 NotImplementedError가 발생한다.
+    아래 Pseudo 주석은 구현할 때 참고할 설계 초안이다.
+    """
     # Pseudo:
     # @wraps(func)  # 내부 wrapper 함수의 메타데이터를 원래 함수의 것으로 복사
     # async def wrapper(*args, **kwargs):   # 경우에 따라서는 비동기 처리 추가
