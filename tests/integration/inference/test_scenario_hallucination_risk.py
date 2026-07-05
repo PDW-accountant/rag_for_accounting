@@ -162,10 +162,11 @@ class TestScenarioHallucinationRisk:
 
         시나리오:
           - rerank: ScoreThresholdError 동작 모사 → needs_reretrieval=True, reranked_chunks=[]
-          - evaluate: 빈 컨텍스트 전달로 EvaluationParsingError 발생
+          - evaluate: 컨텍스트 내용과 무관하게 EvaluationParsingError가 발생하도록 강제 모킹
+            (실제 evaluate_context는 빈 컨텍스트를 에러 없이 처리하므로, 이 예외는 우선순위 검증을 위해 인위적으로 발생시킨 것이다)
 
-        needs_reretrieval이 적절하지 않은 경우: 첫 번째 evaluate 에러에서 즉시 generate → rewrite_count=1
-        needs_reretrieval이 적절한 경우: MAX_REWRITE_COUNT까지 rewrite 반복 → rewrite_count=MAX
+        needs_reretrieval 우선순위가 지켜지지 않는다면(버그 상황): 첫 번째 evaluate 에러에서 즉시 generate로 빠져나가 rewrite_count=1에 머문다.
+        needs_reretrieval 우선순위가 실제 구현대로 지켜진다면: MAX_REWRITE_COUNT까지 rewrite를 반복해 rewrite_count=MAX에 도달한다.
         """
         from src.agent.workflow import handle_node_errors
 

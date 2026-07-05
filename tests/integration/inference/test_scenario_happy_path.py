@@ -5,7 +5,9 @@
 정상 경로를 따라 최종 답변까지 도달하는지 검증합니다.
 
 설계 원칙:
-    - 노드의 비즈니스 로직은 실제 코드를 실행하되, 외부 I/O(LLM 호출, DB 검색)만 Mock 데이터로 대체합니다.
+    - rewrite 노드는 LLM 호출 지점만 mock한 채 실제 코드를 그대로 실행하고,
+      search/rerank/evaluate/generate는 함수 전체를 고정된 반환값으로 교체합니다.
+      이 테스트가 검증하는 대상은 노드 내부 로직이 아니라, 이 노드들 사이에서 GraphState가 올바르게 전달되는지입니다.
     - 최종 결과값뿐 아니라 GraphState의 필드가 각 노드를 거치며 어떻게 진화했는지 이력을 추적합니다.
     - pytest.mark.parametrize로 다양한 속성값을 주입하여 하나의 테스트 함수로 여러 시나리오를 커버합니다.
 """
@@ -69,7 +71,7 @@ class TestScenarioHappyPath:
             ) for r in reranked
         ]
 
-        # 노드 함수는 실제 코드를 실행하되, 외부 I/O만 Mock
+        # search/rerank/evaluate/generate는 함수 전체를 고정된 반환값으로 교체 — 검증 대상은 노드 사이의 라우팅과 State 전이
         with (
             patch("src.agent.workflow.search", return_value={"retrieved_chunks": chunks}),
             patch("src.agent.workflow.rerank", return_value={"reranked_chunks": reranked}),

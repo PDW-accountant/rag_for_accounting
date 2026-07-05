@@ -1,11 +1,11 @@
-"""ingestion 통합 테스트# 전용 픽스처.
+"""ingestion 통합 테스트 전용 픽스처.
 
 이 디렉터리의 테스트는 외부 의존(파싱·임베딩·DB)만 모킹하고 실제 청킹(chunk_graph)·인덱싱(index_documents) 모듈을 그대로 관통한다.
 따라서 라이브 인프라(Docker/모델 다운로드)없이 통과해야 한다.
 
 상위 `tests/integration/conftest.py`의 세션 게이트(`check_integration_env`)는
 OPENAI_API_KEY·Docker 인프라가 없으면 통합 테스트 전체를 skip시키는데, 
-트랙 B는 그런 의존이 없으므로 동명 픽스처로 오버라이드하여 게이트를 무력화한다.
+트랙 B(이 디렉터리처럼 파싱·임베딩·DB를 전부 모킹해 라이브 인프라 없이 통과하는 테스트 그룹)는 그런 의존이 없으므로 동명 픽스처로 오버라이드하여 게이트를 무력화한다.
 pytest는 테스트와 더 가까운 conftest에 정의된 동명 픽스처를 우선 사용한다.
 """
 from unittest.mock import MagicMock, patch
@@ -62,7 +62,7 @@ def mock_embedding():
     """
     with patch("src.db.vector_store.embed_texts") as mock_embed, \
          patch("src.db.vector_store.count_tokens") as mock_count:
-        mock_embed.side_effect = lambda texts, node="index": [[0.1] * EMBEDDING_DIM for _ in texts] # 0.1이 EMBEDDING_DIM(1536)개 들어있는 플로팅 넘버 리스트(벡터)를 만들기 위해
+        mock_embed.side_effect = lambda texts, node="index": [[0.1] * EMBEDDING_DIM for _ in texts]  # 0.1 값만 채운 길이 EMBEDDING_DIM짜리 벡터를 만든다 — 차원 수는 EMBEDDING_DIM 정의를 그대로 따르므로 숫자를 여기 다시 적지 않는다.
         mock_count.return_value = 10    # 기본: 토큰 한도 이내
         yield mock_embed, mock_count
 

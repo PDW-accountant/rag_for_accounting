@@ -6,9 +6,9 @@ NFR-002 벤치마크 조항정확도 측정 공용 모듈
 (scripts/ 는 __init__.py 없는 비패키지이므로, 공용 로직은 tests/ 트리의 이 모듈에 두고 스크립트·테스트가 단방향으로 import 한다.)
 
 측정 지표(각 케이스별):
-  - legacy_substring : 현행 test_reference_coverage 방식 재현(정답 라벨 문자열이 citation 본문에 부분일치하는가)
-  - clause_exact     : 정규화 조항키 정확 매칭 (문단번호 집합 교집합)
-  - clause_prefix    : 계층(prefix) 매칭 (gold "2.6.5" ↔ 청크 "2.6" 허용)
+  - legacy_substring : 예전에 쓰던 substring 매칭 방식을 재현한 대조군 지표(정답 라벨 문자열이 citation 본문에 부분일치하는가만 본다)
+  - {stage}_exact_hit@1/@k/mrr/recall  : 정규화 조항키 정확 매칭(문단번호 집합 교집합) 결과. stage는 retrieval(검색) 또는 generation(생성)
+  - {stage}_prefix_hit@1/@k/mrr/recall : 계층(prefix) 매칭(gold "2.6.5" ↔ 청크 "2.6" 허용) 결과
   - is_answerable    : 가드레일 지표
 
 각 조항키 지표는 검색단계와 생성단계에서 각각 측정하여
@@ -142,7 +142,7 @@ def rank_hit(contents: list[str], gold_paras: set[str], mode: str) -> tuple[int 
 
 
 def legacy_substring_hit(references: list[str], citations) -> bool:
-    """현행 test_reference_coverage 재현: 라벨 문자열이 citation 본문에 부분일치하는가."""
+    """예전에 쓰던 substring 매칭 방식을 재현한 대조군: 라벨 문자열이 citation 본문에 부분일치하는가만 본다."""
     joined = " ".join(c.content for c in citations)
     return any(ref in joined for ref in references)
 
@@ -367,7 +367,9 @@ def aggregate(results: list[CaseResult], k: int) -> dict:
 
 
 # ════════════════════════════════ 리포트 ════════════════════════════════
-# 리포트 요약표에 노출할 지표(라벨, summary 키). k 의존 키는 caller가 포맷한다.
+# 리포트 요약표에 노출할 지표(라벨, summary 키) 목록.
+# k에 의존하는 라벨·키는 이 함수가 인자로 받은 k를 그대로 채워 만들어 반환하므로,
+# 호출부는 완성된 튜플을 그대로 쓰기만 한다.
 def _summary_rows(k: int) -> list[tuple[str, str]]:
     return [
         ("생성 조항 Hit@1 (★ NFR-002 1차)", "generation_exact_hit@1"),
@@ -393,7 +395,8 @@ def write_markdown_report(
 ) -> Path:
     """사람이 읽을 수 있는 측정 결과 리포트(.md)를 생성하고 경로를 반환한다.
 
-    요약표 + 케이스별 hit/miss + 90% 목표 대비 갭 + USE_RERANKER/적재청크수 메타를 포함한다.
+    요약표 + 케이스별 hit/miss + 90% 목표 대비 갭 + USE_RERANKER/적재청크수 메타에 더해,
+    검색 미적중 케이스 진단 목록과 회계사가 직접 채워 검토할 케이스별 대조표(질문·예상정답·실제답변·판정 체크박스)까지 포함한다.
     """
     ts = generated_at or datetime.now(KST)
     stamp = ts.strftime("%Y%m%d_%H%M")

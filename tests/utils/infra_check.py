@@ -7,7 +7,8 @@ Docker 컨테이너 실행 상태, PostgreSQL 확장(pgvector)을 검증합니�
 import os
 import subprocess
 
-# tests/conftest.py에서 load_dotenv()로 .env를 로드했기 때문에 사용 가능
+# src.agent.workflow를 임포트하면 그 안에서 config.py가 전이적으로 로드되고,config.py 최상단의 load_dotenv() 호출로 .env가 읽힌다.
+# 그래서 이 파일은 별도 로드 없이 os.getenv()를 바로 쓸 수 있다.
 DB_NAME = os.getenv("POSTGRES_DB", "accounting_db")
 DB_USER = os.getenv("POSTGRES_USER", "accounting_user")
 
