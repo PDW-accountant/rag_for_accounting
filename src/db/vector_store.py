@@ -133,7 +133,8 @@ def index_documents(chunks: list[RetrievedChunk], collection: str) -> IndexingRe
     - 배치(BATCH_SIZE) 단위 부분 커밋: 실패 배치는 건너뛰고 나머지를 계속 처리
 
     :return: IndexingResult — status는 전량 성공 "success" / 일부 성공 "partial" / 전량 실패 "failed".
-        누락 청크(IX-201·배치실패)는 skipped_chunks에 사유와 함께 담아 복구 신호로 노출한다.
+        누락 청크(IX-201·배치실패·컬렉션 생성 실패)는 skipped_chunks에 사유와 함께 담아 복구 신호로 노출한다.
+        컬렉션 생성이 실패하면 인덱싱 자체를 시작할 수 없으므로, 이때는 입력 청크 전체가 이 사유로 담긴다.
     """
     if not chunks:
         # 빈 입력은 저장할 것이 없는 비정상 호출이므로 failed로 보고한다 (인제스트 테스트 규약)
@@ -146,7 +147,7 @@ def index_documents(chunks: list[RetrievedChunk], collection: str) -> IndexingRe
     except AccountingRAGError as e:
         # 테이블조차 보장할 수 없으면 어떤 배치도 성공할 수 없으므로 즉시 failed 반환
         logger.error(f"인덱싱 중단 — 컬렉션 보장 실패: {e.message}")
-        # 입력 전 청크를 누락으로 기록해 복구 신호를 남긴다
+        # 입력받은 청크 전체를 누락으로 기록해 복구 신호를 남긴다
         skipped = [
             SkippedChunk(chunk_id=c.chunk_id, error_type=e.error_type, reason=e.message)
             for c in chunks
