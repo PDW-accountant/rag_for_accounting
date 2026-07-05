@@ -1,8 +1,8 @@
 """
 Reading Order 재정렬 모듈
 
-1. body.children을 top y 기준 위→아래 정렬 (group은 topmost child 기준 위치)
-2. group 내부 children도 동일하게 정렬
+1. group 내부 children을 top y 기준 위→아래 정렬
+2. body.children도 동일하게 정렬 (group은 topmost child 기준 위치)
 3. 같은 라인(top y 근접)이면 left→right 정렬
 
 ※ group 해제(flatten)는 불가 — Docling이 parent-child 계층을 검증하므로
@@ -95,7 +95,7 @@ def _sort_items(items: list[_ItemInfo]) -> list[_ItemInfo]:
 
 
 def _reorder_children(doc: DoclingDocument, children: list[RefItem]) -> list[RefItem]:
-    """children을 페이지별로 top y 정렬."""
+    """children을 페이지별로 top y 정렬한다. 위치 정보를 구할 수 없는 항목은 정렬하지 않고 뒤에 그대로 붙인다."""
     if not children:
         return children
 
