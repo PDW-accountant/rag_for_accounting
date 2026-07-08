@@ -1,5 +1,5 @@
 {
-  "mcp_servers": {
+  "mcpServers": {
     "accounting-rag": {
       "command": "uv",
       "args": ["run", "python", "-m", "src.mcp.server"]
