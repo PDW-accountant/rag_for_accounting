@@ -152,7 +152,7 @@ flowchart TD
 - 스킬 트리거는 키워드 매칭이 아니라, Codex가 질의와 `SKILL.md`의 `description`을 대조해 판단하는 방식입니다. 같은 질의라도 매번 트리거를 보장하지는 않습니다.
 - 사용자 확인(HIL)은 "질의가 모호해서"가 아니라, 재작성 전략이 질의를 쪼개거나(decompose) 상위 개념으로 추상화(stepback)해야 할 만큼 복잡하다고 판단됐을 때만 발생합니다.
 - 재검색을 최대 3회(`MAX_REWRITE_COUNT`)까지 반복합니다. 근거 청크가 하나도 없거나 전부 임계치 미달이면 답변 불가를 안내하고, 하나라도 임계치를 넘으면 재시도 소진 여부와 무관하게 그 근거로 답변을 생성합니다.
-- 기존 단위·통합 테스트(`tests/unit/`, `tests/integration/`)와 벤치마크(`scripts/benchmark_baseline.py`)를 그대로 재사용합니다. 플러그인을 codex가 인식하는지, 스킬이 실제로 트리거되는지는 `codex` 바이너리가 필요해 별도 수동 체크리스트로 관리합니다.
+- 기존 단위·통합 테스트(`tests/unit/`, `tests/integration/`)와 벤치마크(`scripts/benchmark_baseline.py`)를 그대로 재사용합니다. 플러그인을 codex가 인식하는지, 스킬이 실제로 트리거되는지는 `codex` 바이너리가 필요해 [docs/Update/guides/codex_plugin_manual_checks.md](docs/Update/guides/codex_plugin_manual_checks.md)의 수동 체크리스트로 관리합니다.
 - 스킬을 직접 호출하려면 Codex 세션에서 `/skills`를 입력하고 목록에서 `k-accounting`을 선택합니다.
 
 ### 4. (선택) LangSmith 트레이싱
