@@ -1,0 +1,7 @@
+{
+  "name": "k-accounting",
+  "version": "0.1.0",
+  "description": "K-GAAP/K-IFRS 회계기준서 조항을 검색해 인용과 함께 답하는 RAG 플러그인",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}
