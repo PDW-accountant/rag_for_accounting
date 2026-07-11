@@ -61,7 +61,7 @@ docker compose up -d database
 미리 빌드된 온톨로지 그래프(`data/ontology/*.json`)를 청킹·임베딩하여 pgvector에 적재합니다.
 
 > 📌 데이터 정책: `data/`(회계기준 원문·파생)는 **BYO(Bring Your Own)** 방향으로 전환 중입니다 — 원본 PDF는 [data/raw_data/README.md](data/raw_data/README.md) 안내에 따라 각자 다운로드합니다.
-> 컨테이너의 `data/raw` 마운트는 PDF 서빙용 read-only입니다. 문서 적재(`ingest`)는 `uv sync --extra ingest`를 설치한 호스트에서 실행하는 전제입니다.
+> 컨테이너의 `data/raw_data` 마운트는 PDF 서빙용 read-only입니다. 문서 적재(`ingest`)는 `uv sync --extra ingest`를 설치한 호스트에서 실행하는 전제입니다.
 
 ```bash
 # data/ontology 전체 장을 적재 (검색기와 동일한 chunks 테이블에 저장)
@@ -71,7 +71,7 @@ uv run python -m src.main ingest
 uv run python -m src.main ingest --reset
 
 # 단일 PDF에서 파싱 → 온톨로지 빌드 → 청킹·적재까지 전체 경로
-uv run python -m src.main ingest --pdf data/raw/제6장.pdf --standard-id gaap-ch6 --standard-type GAAP
+uv run python -m src.main ingest --pdf data/raw_data/제6장.pdf --standard-id gaap-ch6 --standard-type GAAP
 ```
 
 #### 질의 (query)
