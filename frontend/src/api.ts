@@ -46,8 +46,8 @@ export interface QueryDoneResponse {
   answer: string;
   is_answerable: boolean;
   confidence: number;
-  /** 서버가 error_logs에서 파생한 폴백 구분자 — TIMEOUT이면 일시적 실패(재시도 유도). */
-  error_code: "TIMEOUT" | null;
+  /** 서버가 error_logs에서 파생한 폴백 구분자 — TIMEOUT·RECURSION_LIMIT 모두 재시도로 회복 가능. */
+  error_code: "TIMEOUT" | "RECURSION_LIMIT" | null;
   clauses: ClauseOut[];
   citations: CitationOut[];
 }
