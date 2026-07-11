@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # Benchmark 데이터 파일 경로 (프로젝트 루트 기준)
-BENCHMARK_PATH = Path(__file__).parent.parent / "fixtures" / "benchmark.jsonl"
+BENCHMARK_PATH = Path(__file__).parent.parent.parent / "data" / "test_data" / "benchmark.jsonl"
 
 
 @dataclass
