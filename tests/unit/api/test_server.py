@@ -128,6 +128,24 @@ class TestQuery:
         assert body["error_code"] == "TIMEOUT"
         assert body["is_answerable"] is False
 
+    def test_recursion_fallback_returns_200_with_error_code(self, client, monkeypatch):
+        """재시도 소진 폴백은 200 done + error_code="RECURSION_LIMIT"이다."""
+        fallback = _done_result(
+            final_response=FinalResponse(
+                answer="너무 많은 재시도가 발생하여 답변을 생성하지 못했습니다. 질문을 구체화하여 다시 시도해주세요.",
+                citations=[],
+                is_answerable=False,
+                confidence_score=0.0,
+            ),
+            error_logs=[{**TIMEOUT_LOG, "error_type": "RECURSION_LIMIT"}],
+        )
+        monkeypatch.setattr("src.api.server.run_workflow", lambda q, standard_filter="ALL": fallback)
+        r = client.post("/query", json={"query": "무한 반복되는 질의"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["error_code"] == "RECURSION_LIMIT"
+        assert body["is_answerable"] is False
+
     def test_non_accounting_early_exit(self, client, monkeypatch):
         """비회계 질의 조기종료도 정상 done 응답이다(error_code 없음, 안내 answer)."""
         early = _done_result(
