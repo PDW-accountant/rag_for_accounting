@@ -60,7 +60,7 @@ docker compose up -d database
 
 미리 빌드된 온톨로지 그래프(`data/ontology/*.json`)를 청킹·임베딩하여 pgvector에 적재합니다.
 
-> 📌 데이터 정책: `data/`(회계기준 원문·파생)는 **BYO(Bring Your Own)** 방향으로 전환 중입니다 — 배경·근거는 [docs/decisions/0001](docs/decisions/0001-byo-corpus-kgaap.md) 참조.
+> 📌 데이터 정책: `data/`(회계기준 원문·파생)는 **BYO(Bring Your Own)** 방향으로 전환 중입니다 — 원본 PDF는 [data/raw_data/README.md](data/raw_data/README.md) 안내에 따라 각자 다운로드합니다.
 > 컨테이너의 `data/raw` 마운트는 PDF 서빙용 read-only입니다. 문서 적재(`ingest`)는 `uv sync --extra ingest`를 설치한 호스트에서 실행하는 전제입니다.
 
 ```bash

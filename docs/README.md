@@ -19,8 +19,7 @@
 | 측정·감사 결과(벤치마크·인덱싱·v1 감사) | [measurements/](measurements/) |
 | 앞으로의 계획·진행 상황 (미래) | GitHub [마일스톤](https://github.com/dongtan-91-dong-welfare-center/rag_for_accounting/milestones)·이슈 (레포가 아니라 GitHub가 정본) |
 | 참조 자료(DART 택소노미·rewrite 샘플·RAG 학습) | [reference/](reference/) |
-| 왜 그렇게 결정했나 (ADR) | [decisions/README.md](decisions/README.md) |
-| 회계기준 `data/`는 왜 레포에 없나 (BYO) | [decisions/0001-byo-corpus-kgaap.md](decisions/0001-byo-corpus-kgaap.md) |
+| 왜 그렇게 결정했나 (ADR) | `docs/decisions/` (로컬 전용 — git 미추적) |
 | 왜 GraphRAG/AGE/Milvus를 버렸나 | [archive/README.md](archive/README.md) |
 
 > 이 레포·문서는 **현재와 과거**(아키텍처·결정·측정)를 다룬다. **미래(계획·진행)는 GitHub 마일스톤·이슈가 정본**이며 여기선 링크만 한다 — 상태값을 문서에 복제해 드리프트시키지 않기 위함이다.

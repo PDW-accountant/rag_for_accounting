@@ -55,3 +55,4 @@ data/ontology
 data/md_data
 
 data/raw_data/*.pdf
+docs/decisions/
