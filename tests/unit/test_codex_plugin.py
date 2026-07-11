@@ -54,8 +54,10 @@ class TestCodexMcpConfig:
     def test_mcp_json_references_existing_server_module(self):
         """mcp server 모듈을 올바르게 참조하는지"""
         data = json.loads(MCP_JSON.read_text())
-        servers = data.get("mcp_servers") or data.get("mcpServers") or data
-        assert servers, ".mcp.json에 등록된 서버가 하나도 없다"
+        # Codex는 mcpServers 키만 인식하고 mcp_servers 같은 다른 표기는 조용히 무시한다.
+        # 구 키까지 함께 허용하면 구 키로 되돌리는 회귀를 이 테스트가 통과시키므로, mcpServers 단일로 검사한다.
+        servers = data.get("mcpServers")
+        assert servers, ".mcp.json에 mcpServers 키가 없거나 비어 있다"
 
         launch_commands = [
             " ".join([cfg.get("command", "")] + cfg.get("args", []))
