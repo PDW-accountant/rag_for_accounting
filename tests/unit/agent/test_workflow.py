@@ -396,6 +396,8 @@ class TestRunWorkflow:
         assert isinstance(result["final_response"], FinalResponse)
         assert result["final_response"].is_answerable is False
         assert "재시도" in result["final_response"].answer
+        assert result["error_logs"][-1]["node"] == "workflow"               # 에러 발생 노드
+        assert result["error_logs"][-1]["error_type"] == "RECURSION_LIMIT"  # 에러 타입
 
     @patch("src.agent.workflow.build_workflow")
     def test_run_workflow_timeout_fallback(self, mock_build_workflow):
@@ -442,6 +444,30 @@ class TestResumeWorkflow:
         assert isinstance(result["final_response"], FinalResponse) # FinalResponse 구조화된 응답
         assert result["final_response"].is_answerable is False # 답변 불가
         assert result["error_logs"][-1]["error_type"] == "TIMEOUT" # 에러 타입
+
+    @patch("src.agent.workflow.build_workflow")
+    def test_resume_workflow_recursion_fallback(self, mock_build_workflow):
+        """재개 중 GraphRecursionError 발생 시 체크포인트 상태 기반 폴백 dict + RECURSION_LIMIT 로그 반환 검증"""
+        from langgraph.errors import GraphRecursionError
+        from src.models.schemas import FinalResponse
+
+        mock_app = MagicMock()
+        mock_app.invoke.side_effect = GraphRecursionError("최대 재귀 횟수 초과")
+        # 체크포인터에 보관된 중간 상태 스냅샷 (재작성 루프가 한계에 도달한 상황 가정)
+        mock_app.get_state.return_value = MagicMock(
+            values={"original_query": "영업권 손상차손 인식 기준은?", "rewrite_count": 3, "error_logs": []}
+        )
+        mock_build_workflow.return_value = mock_app
+
+        result = resume_workflow("tid-210", {"action": "approve"})
+
+        assert isinstance(result, dict) # LangGraph 에러 발생 시 폴백 딕셔너리 반환
+        assert result["thread_id"] == "tid-210" # 클라이언트 재시도를 위해 항상 포함
+        assert result["rewrite_count"] == 3 # 체크포인트에 보관된 중간 상태가 폴백에 보존된다
+        assert isinstance(result["final_response"], FinalResponse) # FinalResponse 구조화된 응답
+        assert result["final_response"].is_answerable is False # 답변 불가
+        assert result["error_logs"][-1]["node"] == "workflow" # 에러 발생 노드
+        assert result["error_logs"][-1]["error_type"] == "RECURSION_LIMIT" # 에러 타입
 
 
 @pytest.mark.unit

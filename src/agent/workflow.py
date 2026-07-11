@@ -494,6 +494,16 @@ def _timeout_fallback_response() -> FinalResponse:
     )
 
 
+def _recursion_error_log(e: GraphRecursionError) -> ErrorLog:
+    # 재시도 소진(recursion_limit 초과)도 그래프 러너가 던지므로 어느 노드에서 소진됐는지 특정할 수 없다.
+    return {
+        "timestamp": datetime.now(KST).isoformat(),
+        "node": "workflow",
+        "error_type": "RECURSION_LIMIT",
+        "message": str(e) or "최대 재시도 횟수를 초과했습니다.",
+    }
+
+
 def _timeout_error_log(e: TimeoutError) -> ErrorLog:
     # step_timeout은 그래프 러너가 던지므로 어느 노드에서 초과됐는지 특정할 수 없다 → node="workflow"
     return {
@@ -547,17 +557,17 @@ def run_workflow(
         result = app.invoke(initial_state, config=_run_config(thread_id, metadata))
         result["thread_id"] = thread_id
         return result
-    except GraphRecursionError:
-        # GraphRecursionError 발생 시 최선 답변 혹은 답변 불가 상태 반환
+    except GraphRecursionError as e:
+        # 재시도 소진 — TIMEOUT 폴백과 대칭으로 폴백 GraphState + error_logs를 반환한다.
         initial_state.final_response = _recursion_fallback_response()
-        # TODO: 예외 발생 시 error_logs 기록 및 상태 반환 로직 정교화
+        initial_state.error_logs = initial_state.error_logs + [_recursion_error_log(e)]
         # invoke() 결과와 동일한 직렬화 구조 유지를 위해, model_dump() 대신
-        # Pydantic 인스턴스를 값으로 유지하는 dict comprehension 방식을 사용합니다.
-        fallback = {k: getattr(initial_state, k) for k in GraphState.model_fields}  # 예시: {'original_query': '....', ...}
+        # Pydantic 인스턴스를 값으로 유지하는 dict comprehension 방식을 사용한다.
+        fallback = {k: getattr(initial_state, k) for k in GraphState.model_fields}
         fallback["thread_id"] = thread_id
         return fallback
     except TimeoutError as e:
-        # 노드 실행이 step_timeout을 초과 — 구조화 반환 계약(#131)에 따라
+        # 노드 실행이 step_timeout을 초과 — 구조화 반환 계약에 따라
         # GraphRecursionError와 동일하게 폴백 GraphState + error_logs를 반환한다.
         initial_state.final_response = _timeout_fallback_response()
         initial_state.error_logs = initial_state.error_logs + [_timeout_error_log(e)]
@@ -590,11 +600,12 @@ def resume_workflow(
         result = app.invoke(Command(resume=resume_value), config=_run_config(thread_id, metadata))
         result["thread_id"] = thread_id
         return result
-    except GraphRecursionError:
+    except GraphRecursionError as e:
         # 재개 시점에는 initial_state가 없으므로 체크포인트에 보관된 현재 상태를 복원해 폴백을 구성한다.
         snapshot = app.get_state(_run_config(thread_id))
         fallback = dict(snapshot.values)
         fallback["final_response"] = _recursion_fallback_response()
+        fallback["error_logs"] = list(fallback.get("error_logs", [])) + [_recursion_error_log(e)]
         fallback["thread_id"] = thread_id
         return fallback
     except TimeoutError as e:
