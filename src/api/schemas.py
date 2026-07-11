@@ -48,7 +48,8 @@ class CitationOut(BaseModel):
 class InterruptOption(BaseModel):
     """HIL 결정 선택지 — /resume의 action으로 되돌아온다."""
 
-    action: str
+    # ResumeRequest.action(Literal)·프론트 api.ts ResumeAction과 동일 계약 — 새 action 추가 시 세 곳을 함께 고친다.
+    action: Literal["approve", "rewrite"]
     label: str
 
 

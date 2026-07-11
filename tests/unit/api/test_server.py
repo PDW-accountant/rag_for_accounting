@@ -214,6 +214,17 @@ class TestDocumentPdf:
         monkeypatch.setattr("src.api.server.PDF_DIR", str(tmp_path))
         assert client.get("/documents/gaap-ch10/pdf").status_code == 404
 
+    def test_head_is_supported_for_availability_check(self, client, monkeypatch, tmp_path):
+        """React 뷰어(checkPdfAvailable)는 HEAD로 제공 여부를 묻는다.
+
+        Starlette 1.x는 GET 라우트에 HEAD를 자동 추가하지 않아, 명시 등록이 없으면
+        405가 되어 PDF가 있어도 뷰어가 항상 안내 메시지로 강등된다.
+        """
+        (tmp_path / "gaap-ch10.pdf").write_bytes(b"%PDF-1.4 test")
+        monkeypatch.setattr("src.api.server.PDF_DIR", str(tmp_path))
+        r = client.head("/documents/gaap-ch10/pdf")
+        assert r.status_code == 200
+
     def test_path_escape_attempt_is_rejected(self, client, monkeypatch, tmp_path):
         """document_id는 [a-z0-9-] 패턴만 허용 — 경로 탈출 시도가 PDF 라우트에 도달하지 못한다.
 

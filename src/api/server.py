@@ -115,6 +115,7 @@ def resume(req: ResumeRequest) -> WorkflowResponse:
 
 
 @app.get("/documents/{document_id}/pdf")
+@app.head("/documents/{document_id}/pdf")  # 뷰어(checkPdfAvailable)의 제공 여부 확인 — Starlette 1.x는 HEAD 자동 등록이 없다
 def document_pdf(
     document_id: str = PathParam(pattern=r"^[a-z0-9-]+$"),  # 경로 탈출(..%2F 등) 라우팅 단계 차단
 ) -> FileResponse:

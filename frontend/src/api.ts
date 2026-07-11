@@ -64,15 +64,29 @@ export type StandardFilter = "ALL" | "GAAP" | "KIFRS";
 
 const API_BASE: string = import.meta.env.VITE_API_BASE ?? "";
 
+// 워크플로는 LLM 다중 호출로 수 분까지 걸릴 수 있다 — 서버 측 노드 타임아웃보다 넉넉하게.
+const REQUEST_TIMEOUT_MS = 180_000;
+
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error("서버 응답이 없어 요청을 중단했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    throw new Error("서버에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.");
+  }
   if (!res.ok) {
+    // 원문 detail은 내부 정보(thread_id·검증 필드 등)라 화면에 노출하지 않고 콘솔에만 남긴다.
     const detail = await res.text();
-    throw new Error(`${res.status} ${res.statusText} — ${detail}`);
+    console.error(`API ${path} 실패: HTTP ${res.status}`, detail);
+    throw new Error(`요청이 실패했습니다 (HTTP ${res.status} ${res.statusText})`);
   }
   return res.json() as Promise<T>;
 }
@@ -94,7 +108,7 @@ export function postResume(
 /** 원문 PDF 서빙 경로 — 브라우저 내장 뷰어의 #page=N 으로 해당 페이지를 연다. */
 export function documentPdfUrl(documentId: string, page?: number): string {
   const hash = page ? `#page=${page}` : "";
-  return `${API_BASE}/documents/${documentId}/pdf${hash}`;
+  return `${API_BASE}/documents/${encodeURIComponent(documentId)}/pdf${hash}`;
 }
 
 /** PDF 제공 여부 확인(BYO 환경 폴백용) — 404면 뷰어를 안내 메시지로 강등한다. */

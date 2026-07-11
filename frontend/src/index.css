@@ -1,5 +1,5 @@
 /**
- * Basis — 회계기준 리서치 "리서치 데스크" 디자인.
+ * K-Accounting — 회계기준 리서치 "리서치 데스크" 디자인.
  * 페이퍼 화이트(#fbfaf7) + 딥 네이비(#16294d) + 골드 포인트(#8a6d3b),
  * 세리프 헤드라인(Noto Serif KR) + 모노스페이스 데이터(IBM Plex Mono).
  */
@@ -13,11 +13,12 @@
   --paper-3: #f2efe6;
   --line: #e0ddd3;
   --line-2: #d6d1c4;
-  --mute: #8a8574;
-  --mute-2: #a5a091;
+  /* muted 계열은 --paper 위 4.5:1(WCAG AA) 이상을 유지해야 한다 — 밝게 되돌리지 말 것. */
+  --mute: #6e6a5b;
+  --mute-2: #7d7868;
   --green: #1e7d3f;
   --red: #b02a2a;
-  --amber: #9a6b0f;
+  --amber: #7a5509;
 
   --sans: "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
   --serif: "Noto Serif KR", serif;
@@ -83,7 +84,8 @@ a:hover {
 .brand {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  flex-wrap: wrap; /* 브랜드명이 길어 서브 카피는 자연스럽게 다음 줄로 */
+  gap: 2px 10px;
   padding: 0 22px 20px;
 }
 
@@ -188,6 +190,7 @@ a:hover {
 }
 
 .main-title {
+  margin: 0;
   font-family: var(--serif);
   font-size: 15px;
   font-weight: 600;
@@ -237,7 +240,7 @@ a:hover {
 
 .query-time {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--mute);
 }
 
 .query-text {
@@ -314,7 +317,7 @@ a:hover {
 
 .section-note {
   font-size: 11.5px;
-  color: #9ca3af;
+  color: var(--mute);
 }
 
 /* 조항 카드 — 랭크 컬럼 + 본문 */
@@ -584,6 +587,12 @@ details.cite-card .cite-content {
   to { transform: rotate(360deg); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 .loading-label {
   font-size: 12.5px;
   font-weight: 600;
@@ -594,6 +603,27 @@ details.cite-card .cite-content {
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--mute);
+}
+
+.fatal-error {
+  max-width: 480px;
+  margin: 20vh auto 0;
+  padding: 24px;
+  border: 1px solid var(--line-2);
+  background: var(--paper-2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fatal-error button {
+  align-self: center;
+  padding: 8px 22px;
+  border: 1px solid var(--navy);
+  background: var(--navy);
+  color: #fff;
+  font-size: 13px;
 }
 
 .error-card {
@@ -781,7 +811,8 @@ details.cite-card .cite-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap; /* 좁은 폭에서 내비게이션이 다음 줄로 내려가되 버튼 글자는 깨지지 않게 */
+  gap: 8px 1rem;
   padding: 12px 16px;
   border-bottom: 2px solid var(--navy);
 }
@@ -799,6 +830,30 @@ details.cite-card .cite-content {
   color: var(--navy);
   padding: 3px 12px;
   font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.viewer-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.viewer-nav input {
+  width: 52px;
+  padding: 3px 6px;
+  border: 1px solid var(--line-2);
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+  text-align: right;
+}
+
+.viewer-nav-unit {
+  font-size: 11.5px;
+  color: var(--mute);
 }
 
 .viewer-body {

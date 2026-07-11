@@ -1,5 +1,5 @@
 /**
- * Basis — 회계기준 리서치. "리서치 데스크" 디자인의 채팅형(트랜스크립트) UI.
+ * K-Accounting — 회계기준 리서치. "리서치 데스크" 디자인의 채팅형(트랜스크립트) UI.
  *
  * 상태머신은 기존과 동일: idle → loading → (interrupted ⇄ loading)* → done | error.
  * 완료된 질의는 exchanges[]에 쌓여 트랜스크립트로 렌더되고(채팅형),
@@ -92,11 +92,12 @@ export default function App() {
     const current: Pending = { query: q, standard, time: timeNow(), hilNote: null };
     setPending(current);
     setQuery("");
+    setFeedback(""); // 이전 질의의 HIL 피드백이 새 질의의 재작성 입력에 남지 않게 한다
     setStage({ kind: "loading", label: "워크플로 실행 중" });
     try {
       apply(await postQuery(q, standard), current);
     } catch (err) {
-      setStage({ kind: "error", message: String(err) });
+      setStage({ kind: "error", message: err instanceof Error ? err.message : String(err) });
     }
   };
 
@@ -120,7 +121,7 @@ export default function App() {
       );
       setFeedback("");
     } catch (err) {
-      setStage({ kind: "error", message: String(err) });
+      setStage({ kind: "error", message: err instanceof Error ? err.message : String(err) });
     }
   };
 
@@ -134,6 +135,7 @@ export default function App() {
   };
 
   const dismissError = () => {
+    if (pending) setQuery(pending.query); // 실패한 질의를 컴포저로 되돌려 재시도(재입력) 부담을 없앤다
     setPending(null);
     setStage({ kind: "idle" });
   };
@@ -142,7 +144,7 @@ export default function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-name">Basis</span>
+          <span className="brand-name">K-Accounting</span>
           <span className="brand-sub">회계기준 리서치</span>
         </div>
         <button className="new-research" onClick={reset} disabled={busy}>
@@ -180,14 +182,14 @@ export default function App() {
 
       <main className="main">
         <header className="main-header">
-          <span className="main-title">{sessionTitle}</span>
+          <h1 className="main-title">{sessionTitle}</h1>
           <span className="main-header-meta">K-GAAP · K-IFRS 전문 검색</span>
         </header>
 
         <div className="transcript">
           {exchanges.length === 0 && !pending && stage.kind === "idle" && (
             <div className="empty-state">
-              <span className="brand-name">Basis</span>
+              <span className="brand-name">K-Accounting</span>
               <p>
                 회계기준에 대해 질의하세요. 관련 조항을 먼저 검색해 보여드리고,
                 <br />그 조항을 근거로 답변을 생성합니다.
@@ -204,7 +206,7 @@ export default function App() {
           )}
 
           {stage.kind === "loading" && (
-            <div className="loading-card">
+            <div className="loading-card" role="status">
               <span className="spinner" />
               <div>
                 <div className="loading-label">{stage.label}</div>
@@ -214,7 +216,7 @@ export default function App() {
           )}
 
           {stage.kind === "error" && (
-            <div className="error-card">
+            <div className="error-card" role="alert">
               <p>실행 오류: {stage.message}</p>
               <button onClick={dismissError}>닫기</button>
             </div>
@@ -226,6 +228,7 @@ export default function App() {
               feedback={feedback}
               onFeedbackChange={setFeedback}
               onDecide={(action) => resume(stage.response, action)}
+              onDismiss={dismissError}
             />
           )}
 
@@ -235,6 +238,7 @@ export default function App() {
         <div className="composer-wrap">
           <form className="composer" onSubmit={submitQuery}>
             <select
+              name="standard-filter"
               value={standard}
               onChange={(e) => setStandard(e.target.value as StandardFilter)}
               disabled={busy}
@@ -248,9 +252,11 @@ export default function App() {
             </select>
             <span className="composer-divider" />
             <input
+              name="query"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="회계기준에 대해 질의하세요… (예: 재고자산의 취득원가는 어떻게 측정하나요?)"
+              aria-label="질의 입력"
               disabled={busy}
             />
             <button type="submit" className="btn-primary" disabled={busy || !query.trim()}>
@@ -285,7 +291,7 @@ function QueryBlock({
           {time} · 필터: {standardLabel(standard)}
         </span>
       </div>
-      <p className="query-text">{query}</p>
+      <h2 className="query-text">{query}</h2>
       <div className="query-rule" />
     </div>
   );
@@ -317,11 +323,13 @@ function HumanReview({
   feedback,
   onFeedbackChange,
   onDecide,
+  onDismiss,
 }: {
   response: QueryInterruptedResponse;
   feedback: string;
   onFeedbackChange: (v: string) => void;
   onDecide: (action: ResumeAction) => void;
+  onDismiss: () => void;
 }) {
   const { interrupt } = response;
   const approveOption = interrupt.options.find((o) => o.action === "approve");
@@ -349,14 +357,22 @@ function HumanReview({
         {rewriteOption && (
           <>
             <input
+              name="rewrite-feedback"
               value={feedback}
               onChange={(e) => onFeedbackChange(e.target.value)}
               placeholder="재작성 피드백…"
+              aria-label="재작성 피드백"
             />
             <button className="btn-secondary" onClick={() => onDecide("rewrite")}>
               {rewriteOption.label}
             </button>
           </>
+        )}
+        {!approveOption && !rewriteOption && (
+          // 알 수 없는 옵션만 오면 버튼이 하나도 없어 진행 불가 — 탈출구를 남긴다.
+          <button className="btn-secondary" onClick={onDismiss}>
+            진행할 수 없는 요청 — 닫기
+          </button>
         )}
       </div>
     </section>
@@ -399,19 +415,79 @@ function PageButton({
 
 function PdfViewerModal({ target, onClose }: { target: ViewerTarget; onClose: () => void }) {
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [page, setPage] = useState(target.page);
+  const [pageInput, setPageInput] = useState(String(target.page));
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setAvailable(null);
     checkPdfAvailable(target.documentId).then(setAvailable);
   }, [target.documentId]);
 
+  // 모달 기본기: 열릴 때 포커스 이동·배경 스크롤 잠금, Escape 닫기, 닫힐 때 포커스 복원.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      opener?.focus();
+    };
+  }, [onClose]);
+
+  const goTo = (next: number) => {
+    const p = Math.max(1, next);
+    setPage(p);
+    setPageInput(String(p));
+  };
+
+  const submitPage = (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = Number(pageInput);
+    if (Number.isInteger(n) && n >= 1) goTo(n);
+    else setPageInput(String(page));
+  };
+
   return (
     <div className="viewer-overlay" onClick={onClose}>
-      <div className="viewer-panel" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="viewer-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="viewer-title"
+        tabIndex={-1}
+        ref={panelRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="viewer-header">
-          <span className="viewer-title">
-            원문 — {target.documentId} · {target.page}쪽
+          <span className="viewer-title" id="viewer-title">
+            원문 — {target.documentId} · {page}쪽
           </span>
+          {available && (
+            <form className="viewer-nav" onSubmit={submitPage}>
+              <button type="button" onClick={() => goTo(page - 1)} disabled={page <= 1}>
+                ◀ 이전
+              </button>
+              <input
+                name="viewer-page"
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                inputMode="numeric"
+                aria-label="이동할 페이지 번호"
+              />
+              <span className="viewer-nav-unit">쪽</span>
+              <button type="submit">이동</button>
+              <button type="button" onClick={() => goTo(page + 1)}>
+                다음 ▶
+              </button>
+            </form>
+          )}
           <button type="button" onClick={onClose}>
             닫기
           </button>
@@ -426,9 +502,10 @@ function PdfViewerModal({ target, onClose }: { target: ViewerTarget; onClose: ()
           )}
           {available && (
             <iframe
+              key={page} /* src의 #page 해시만 바뀌면 내장 PDF 뷰어가 재로딩하지 않아 리마운트로 강제 이동한다 */
               className="viewer-frame"
               title={`${target.documentId} 원문`}
-              src={documentPdfUrl(target.documentId, target.page)}
+              src={documentPdfUrl(target.documentId, page)}
             />
           )}
         </div>
@@ -445,13 +522,27 @@ function PdfViewerModal({ target, onClose }: { target: ViewerTarget; onClose: ()
 function Result({ response }: { response: QueryDoneResponse }) {
   const [viewer, setViewer] = useState<ViewerTarget | null>(null);
 
+  // 타임아웃 폴백은 조항·답변·인용이 모두 비어 있으므로 안내만 간결하게 보여준다.
+  if (response.error_code === "TIMEOUT") {
+    return (
+      <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="result-head">
+          <span className="result-kicker">K-ACCOUNTING 검토 결과</span>
+          <span className="pill warn">처리 시간 초과</span>
+        </div>
+        <p className="notice warning">
+          처리 시간이 초과되어 답변을 생성하지 못했습니다. 일시적인 문제이니 잠시 후 같은 질의로 다시
+          시도해 주세요.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="result-head">
-        <span className="result-kicker">BASIS 검토 결과</span>
-        {response.error_code === "TIMEOUT" ? (
-          <span className="pill warn">처리 시간 초과</span>
-        ) : response.is_answerable ? (
+        <span className="result-kicker">K-ACCOUNTING 검토 결과</span>
+        {response.is_answerable ? (
           <span className="pill ok">답변 가능</span>
         ) : (
           <span className="pill warn">근거 부족</span>
@@ -460,13 +551,6 @@ function Result({ response }: { response: QueryDoneResponse }) {
           신뢰도 <strong>{(response.confidence * 100).toFixed(1)}%</strong>
         </span>
       </div>
-
-      {response.error_code === "TIMEOUT" && (
-        <p className="notice warning">
-          처리 시간이 초과되어 답변을 생성하지 못했습니다. 일시적인 문제이니 잠시 후 같은 질의로 다시
-          시도해 주세요.
-        </p>
-      )}
 
       {/* NFR-002: 조항 검색이 1순위이므로 답변보다 먼저 노출한다. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
