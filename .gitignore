@@ -53,3 +53,5 @@ docs/measurements/sparse_keyword_replay_*.json
 docs/measurements/bm25_replay_*.json
 data/ontology
 data/md_data
+
+data/raw_data/*.pdf
