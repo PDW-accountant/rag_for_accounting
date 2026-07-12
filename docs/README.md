@@ -17,6 +17,7 @@
 | 파싱 산출물(llm_parsed) **정본·취소선 제외 규칙**은 | [policies/parsing_output_rules.md](policies/parsing_output_rules.md) |
 | 임계값·모델·`RRF_K` 같은 상수는 | [src/utils/config.py](../src/utils/config.py) |
 | 측정·감사 결과(벤치마크·인덱싱·v1 감사) | [measurements/](measurements/) |
+| Codex 플러그인이 실제로 동작하는지 확인하려면 | [Update/guides/codex_plugin_manual_checks.md](Update/guides/codex_plugin_manual_checks.md) |
 | 앞으로의 계획·진행 상황 (미래) | GitHub [마일스톤](https://github.com/dongtan-91-dong-welfare-center/rag_for_accounting/milestones)·이슈 (레포가 아니라 GitHub가 정본) |
 | 참조 자료(DART 택소노미·rewrite 샘플·RAG 학습) | [reference/](reference/) |
 | 왜 그렇게 결정했나 (ADR) | `docs/decisions/` (로컬 전용 — git 미추적) |

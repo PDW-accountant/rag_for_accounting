@@ -114,6 +114,48 @@ claude mcp add accounting-rag -- uv run python -m src.mcp.server
 
 > DB·임베딩 서버가 떠 있어야 합니다(`docker compose up -d database embedding`). 임베딩을 TEI로 위임하려면 `EMBEDDING_SERVER_URL=http://localhost:8080`을 설정합니다.
 
+Claude Code용 스킬도 함께 제공됩니다 — `.claude/skills/k-accounting/`이 저장소에 포함되어 있어, 이 저장소 디렉토리에서 Claude Code를 열면 회계 질의에서 자동으로 활성화됩니다. 스킬은 위에서 등록한 `accounting-rag` 도구를 호출하므로 **`claude mcp add` 등록이 선행되어야** 동작합니다.
+
+#### Codex 플러그인
+
+비상장 중소기업 감사에 투입되면 K-GAAP(한국의 일반기업회계기준 — 상장사가 쓰는 K-IFRS와 별도로 비상장 중소기업에 적용되는 기준)에서 K-IFRS와 다르게 규정한 회계처리를 빠르게 확인해야 합니다. K-GAAP은 공인회계사 시험 과정에서 깊게 다루지 않아 실무 투입 시 조항 자체가 낯설고, 조항 수가 많아 "이 거래에 정확히 어떤 조항이 적용되는가"를 원문에서 장별로 하나씩 찾아보는 데 시간이 걸립니다. Codex 플러그인은 이 탐색을 대화 중 질의 한 번으로 줄여줍니다.
+
+MCP 서버와 달리 Codex는 플러그인을 마켓플레이스 경유로 설치합니다. 이 저장소 전체가 마켓플레이스이고, 그 안의 `src/`가 플러그인 루트입니다.
+```bash
+# 플러그인 등록 (저장소 루트에서, 최초 1회)
+codex plugin marketplace add .
+codex plugin add k-accounting@k-accounting-marketplace
+```
+
+> MCP 서버(`src/mcp/server.py`)는 플러그인에 번들되어 있어 위 설치만으로 함께 등록됩니다 — Claude처럼 `mcp add`를 별도로 실행할 필요가 없습니다. DB·임베딩 서버가 떠 있어야 하고(`docker compose up -d database embedding`), **Codex 세션은 이 저장소 루트에서 열어야 합니다**.
+
+설치 후 동작 절차는 다음과 같습니다.
+
+```mermaid
+flowchart TD
+    Q([사용자 질의]) --> SKILL{Codex가 질의를 k-accounting<br/>스킬 설명과 대조해 판단}
+    SKILL -->|무관하다고 판단| NOOP[스킬 미적용]
+    SKILL -->|회계기준 관련으로 판단| MCP[query_standards 호출]
+    MCP --> REWRITE[rewrite: 질의 재작성]
+    REWRITE -->|비회계 질의로 재분류| EXIT[종료 안내]
+    REWRITE --> HR{human_review}
+    HR -->|그 외 전략 또는 이미 승인| SEARCH[search → rerank<br/>선택 적용]
+    HR -->|재작성 전략이 decompose/stepback<br/>이고 아직 미승인| HIL[HIL: 사용자에게<br/>진행 여부 확인]
+    HIL -->|재작성 요청| REWRITE
+    HIL -->|승인| SEARCH
+    SEARCH --> EVAL{evaluate: CRAG 품질 게이트}
+    EVAL -->|근거 부족, 재작성 한도 남음| REWRITE
+    EVAL -->|근거 충분 또는 재시도 소진| GEN[generate: 답변 생성]
+    GEN -->|근거 청크 있음| DONE[답변 + 인용 + 신뢰도 반환]
+    GEN -->|근거 청크 전무 또는<br/>전부 임계치 미달| FAIL[답변 불가 안내]
+```
+
+- 스킬 트리거는 키워드 매칭이 아니라, Codex가 질의와 `SKILL.md`의 `description`을 대조해 판단하는 방식입니다. 같은 질의라도 매번 트리거를 보장하지는 않습니다.
+- 사용자 확인(HIL)은 "질의가 모호해서"가 아니라, 재작성 전략이 질의를 쪼개거나(decompose) 상위 개념으로 추상화(stepback)해야 할 만큼 복잡하다고 판단됐을 때만 발생합니다.
+- 질의 재작성(rewrite)은 `MAX_REWRITE_COUNT`회 한도로 수행됩니다. 이 한도는 최초 재작성을 포함한 총횟수라, 근거 부족으로 되도는 재검색은 그보다 한 번 적게 일어납니다. 근거 청크가 하나도 없거나 전부 임계치 미달이면 답변 불가를 안내하고, 하나라도 임계치를 넘으면 한도 소진 여부와 무관하게 그 근거로 답변을 생성합니다.
+- 기존 단위·통합 테스트(`tests/unit/`, `tests/integration/`)와 벤치마크(`scripts/benchmark_baseline.py`)를 그대로 재사용합니다. 플러그인을 codex가 인식하는지, 스킬이 실제로 트리거되는지는 `codex` 바이너리가 필요해 [docs/Update/guides/codex_plugin_manual_checks.md](docs/Update/guides/codex_plugin_manual_checks.md)의 수동 체크리스트로 관리합니다.
+- 스킬을 직접 호출하려면 Codex 세션에서 `/skills`를 입력하고 목록에서 `k-accounting`을 선택합니다.
+
 ### 4. (선택) LangSmith 트레이싱
 
 케이스별로 파이프라인 노드 흐름·입출력·지연을 추적하려면 LangSmith 트레이싱을 켤 수 있습니다(개발자 디버깅용, 기본 OFF). `.env`에 아래 환경변수를 설정합니다.
