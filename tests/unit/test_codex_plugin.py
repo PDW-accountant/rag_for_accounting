@@ -6,9 +6,11 @@ Codex 플러그인 매니페스트(plugin.json)·스킬(SKILL.md)·MCP 설정(.m
 에러 메시지 없이 기능만 빠지므로 배포 후에야 발견되기 쉽다. 
 이 테스트는 그런 실수를 codex 실행 전에 잡는다.
 """
+import inspect
 import json
 import re
 from pathlib import Path
+from typing import get_args
 
 import pytest
 
@@ -86,4 +88,24 @@ class TestKaccountingSkill:
         )
         assert re.search(r"^description:\s*\S+", frontmatter, re.MULTILINE), (
             "SKILL.md frontmatter에 description이 없다"
+        )
+
+    def test_skill_md_standard_filter_values_match_server_literal(self):
+        """스킬이 지시하는 standard_filter 값이 서버 enum과 일치하는지 검증한다"""
+        # 스킬 본문의 `"GAAP"` 같은 값은 서버 시그니처의 Literal에서 손으로 옮겨 적은 사본이다.
+        # 서버 enum이 바뀌면(값 개명·추가) 스킬은 옛 값을 계속 지시하는데,
+        # 그 어긋남은 실행 시점의 pydantic 검증 에러로만 드러나고 단위 스위트는 통과하므로 여기서 잡는다.
+        from src.mcp import server
+
+        annotation = inspect.signature(server.query_standards).parameters[
+            "standard_filter"
+        ].annotation
+        server_values = set(get_args(annotation))
+
+        skill_values = set(
+            re.findall(r'`"([A-Z]+)"`', SKILL_MD.read_text(encoding="utf-8"))
+        )
+        assert skill_values == server_values, (
+            f"SKILL.md의 standard_filter 값 {sorted(skill_values)}이 "
+            f"서버 Literal {sorted(server_values)}과 다르다 — 한쪽만 바뀐 상태다"
         )
