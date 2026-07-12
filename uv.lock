@@ -4150,6 +4150,9 @@ ingest = [
 local-embedding = [
     { name = "sentence-transformers" },
 ]
+reranker = [
+    { name = "sentence-transformers" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -4179,10 +4182,11 @@ requires-dist = [
     { name = "pyhwp", marker = "extra == 'ingest'", specifier = ">=0.1b15" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "sentence-transformers", marker = "extra == 'local-embedding'", specifier = ">=3.0.0" },
+    { name = "sentence-transformers", marker = "extra == 'reranker'", specifier = ">=3.0.0" },
     { name = "streamlit", specifier = ">=1.56.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
-provides-extras = ["ingest", "local-embedding"]
+provides-extras = ["ingest", "local-embedding", "reranker"]
 
 [package.metadata.requires-dev]
 dev = [

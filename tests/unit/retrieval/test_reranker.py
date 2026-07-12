@@ -294,3 +294,28 @@ class TestLazyModelLoadFailure:
              patch.dict(sys.modules, {"sentence_transformers": fake_st}):
             with pytest.raises(RerankFailureError, match="Cross-Encoder 모델 로드 실패"):
                 rerank_chunks("질의", sample_chunks)
+
+
+@pytest.mark.unit
+class TestWarmupReranker:
+    """
+    warmup_reranker() — 기동 시 리랭커 모델을 미리 로드해 첫 질의의 콜드 로드를 요청 경로 밖으로 뺀다.
+
+    rerank 노드는 그래프 러너의 step_timeout(노드당 30초) 안에서 도는데,
+    bge-reranker-v2-m3(~2.2GB)를 첫 질의 때 지연 로딩하면 최초 다운로드가 30초를 넘겨 타임아웃 폴백이 나간다.
+    기동 시 미리 데워 이를 막는다.
+    """
+
+    def test_loads_model_when_enabled(self):
+        """USE_RERANKER=True면 모델 로드(_ensure_model_loaded)를 호출한다."""
+        with patch("src.retrieval.reranker._ensure_model_loaded") as mock_load, \
+             patch("src.utils.config.USE_RERANKER", True):
+            reranker_module.warmup_reranker()
+            mock_load.assert_called_once()
+
+    def test_skips_when_disabled(self):
+        """USE_RERANKER=False면 리랭커를 쓰지 않으므로 모델을 로드하지 않는다(불필요한 ~2.2GB 로드 회피)."""
+        with patch("src.retrieval.reranker._ensure_model_loaded") as mock_load, \
+             patch("src.utils.config.USE_RERANKER", False):
+            reranker_module.warmup_reranker()
+            mock_load.assert_not_called()

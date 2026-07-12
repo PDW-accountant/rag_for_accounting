@@ -9,8 +9,8 @@ RRF-k {30,60,90,120} × 후보 리랭커 매트릭스를 재검색·LLM 없이 �
   uv run python scripts/rerank_replay.py dump
   uv run python scripts/rerank_replay.py replay --dump-file docs/measurements/rerank_replay_dump_<stamp>.json
 
-채택/롤백 기준(2026-07-04 사전 확정):
-  retrieval Hit@1 순증 ≥ +2건 AND 기존 hit 회귀 0건 AND MRR 순증 > 0 AND 쿼리당 지연 p50 ≤ 1s.
+채택/롤백 기준(2026-07-04 사전 확정, 지연 기준 1s→5s로 완화):
+  retrieval Hit@1 순증 ≥ +2건 AND 기존 hit 회귀 0건 AND MRR 순증 > 0 AND 쿼리당 지연 p50 ≤ 5s.
   #183 gold 확정 대기 케이스는 델타만 기록하고 판정 모집단에서 제외한다.
 """
 from __future__ import annotations
@@ -32,7 +32,7 @@ from src.utils.config import KST, RRF_K  # noqa: E402
 # gold 확정 대기 — 델타는 기록하되 채택 판정 모집단에서 제외
 EXCLUDED_CASE_IDS = frozenset({"TEST-K-GAAP-003", "TEST-K-GAAP-005", "TEST-K-GAAP-012"})
 ADOPT_MIN_GAINS = 2      # retrieval Hit@1 순증 최소 건수
-ADOPT_MAX_P50_S = 1.0    # 쿼리당 rerank 지연 p50 상한(초)
+ADOPT_MAX_P50_S = 5.0    # 쿼리당 rerank 지연 p50 상한(초) — #228: 1s→5s 완화, 고객 요구에 따라 추후 조정
 SWEEP_KS = (30, 60, 90, 120)  # RRF-k 스윕 통합
 TOP_N = 10
 

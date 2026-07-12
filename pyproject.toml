@@ -34,9 +34,14 @@ ingest = [
 local-embedding = [
     "sentence-transformers>=3.0.0",
 ]
+# 리랭커(CrossEncoder)와 오프라인 리랭킹 하니스가 sentence-transformers를 쓴다. 리랭커는 실측상 기본 OFF라
+# 운영 이미지엔 넣지 않는다 — opt-in(USE_RERANKER=true 실험)이나 하니스 실행 때만 --extra reranker로 설치한다.
+reranker = [
+    "sentence-transformers>=3.0.0",
+]
 
-# dev 도구는 uv dependency group으로만 설치한다. 운영 이미지는 --no-dev, 로컬 임베딩은
-# --extra local-embedding 또는 --extra ingest를 명시한 환경에서만 무거운 모델/파서 스택을 설치한다.
+# dev 도구는 uv dependency group으로만 설치한다. 운영 앱 이미지는 --no-dev(슬림)로 빌드하고,
+# reranker·ingest·local-embedding 등 무거운 스택은 해당 --extra를 명시한 환경에서만 설치한다.
 [dependency-groups]
 dev = [
     "kiwipiepy>=0.23.2",

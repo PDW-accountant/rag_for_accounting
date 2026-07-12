@@ -192,18 +192,27 @@ def _print_response(result: dict) -> None:
 
 
 def _preload_embedding() -> None:
-    """첫 질의 전 임베딩 모델을 preload해 콜드 로드를 step_timeout(노드 30s) 밖으로 분리한다.
+    """
+    첫 질의 전 임베딩·리랭커 모델을 preload해 콜드 로드를 step_timeout(노드 30s) 밖으로 분리한다.
 
-    KURE-v1 콜드 로드(mps ~50초)가 search 노드 안에서 일어나면 step_timeout을 넘겨 첫 질의가 TimeoutError로 실패할 수 있다.
+    KURE-v1 콜드 로드(mps ~50초)나 리랭커(bge-reranker-v2-m3, ~2.2GB) 콜드 로드가 노드 안에서 일어나면
+    step_timeout을 넘겨 첫 질의가 TimeoutError로 실패할 수 있다.
     invoke() 전에 미리 데워 이를 막는다.
+    리랭커는 USE_RERANKER가 켜져 있을 때만 로드한다.
     실패해도(예: HF 접속 불가) 막지 않는다. 첫 질의가 기존 lazy 로드로 폴백한다.
     """
     from src.utils.embedding import warmup_model
+    from src.retrieval.reranker import warmup_reranker
 
     try:
         warmup_model()
     except Exception as e:  # noqa: BLE001 — preload 실패는 비치명적(lazy 폴백 존재)
         logger.warning(f"임베딩 preload 실패 — 첫 질의에서 lazy 로드로 폴백: {e}")
+
+    try:
+        warmup_reranker()
+    except Exception as e:  # noqa: BLE001 — preload 실패는 비치명적(lazy 폴백 존재)
+        logger.warning(f"리랭커 preload 실패 — 첫 질의에서 lazy 로드로 폴백: {e}")
 
 
 def run_query(args) -> int:
