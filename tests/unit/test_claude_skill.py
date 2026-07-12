@@ -26,7 +26,7 @@ class TestClaudeSkillSync:
 
     def test_claude_skill_matches_codex_skill(self):
         """두 사본의 내용이 같아야 한다"""
-        assert CLAUDE_SKILL.read_text() == CODEX_SKILL.read_text(), (
+        assert CLAUDE_SKILL.read_text(encoding="utf-8") == CODEX_SKILL.read_text(encoding="utf-8"), (
             "src/skills와 .claude/skills의 SKILL.md 내용이 다르다 — "
             "한쪽만 수정된 상태다. 두 파일을 같게 맞춘 뒤 커밋할 것"
         )
