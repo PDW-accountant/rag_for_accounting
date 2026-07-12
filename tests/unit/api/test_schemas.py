@@ -151,6 +151,22 @@ class TestErrorCode:
         assert res.error_code == "TIMEOUT"
         assert res.is_answerable is False
 
+    def test_recursion_fallback_sets_error_code(self):
+        """재시도 소진 폴백 → error_code="RECURSION_LIMIT" 파생"""
+        fallback = _done_result(
+            final_response=FinalResponse(
+                answer="너무 많은 재시도가 발생하여 답변을 생성하지 못했습니다. 질문을 구체화하여 다시 시도해주세요.",
+                citations=[],
+                is_answerable=False,
+                confidence_score=0.0,
+            ),
+            reranked_chunks=[],
+            error_logs=[{**TIMEOUT_LOG, "error_type": "RECURSION_LIMIT"}],
+        )
+        res = to_api_response(fallback)
+        assert res.error_code == "RECURSION_LIMIT"
+        assert res.is_answerable is False
+
     def test_node_level_errors_do_not_set_error_code(self):
         """노드 레벨 에러(CM-002 등)는 폴백 구분자가 아니다 — TIMEOUT만 매핑"""
         node_error = {**TIMEOUT_LOG, "node": "search", "error_type": "CM-002"}

@@ -538,6 +538,22 @@ function Result({ response }: { response: QueryDoneResponse }) {
     );
   }
 
+  // 재시도 소진 폴백도 조항·답변·인용이 비어 있으므로 안내만 간결하게 보여준다.
+  if (response.error_code === "RECURSION_LIMIT") {
+    return (
+      <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="result-head">
+          <span className="result-kicker">K-ACCOUNTING 검토 결과</span>
+          <span className="pill warn">처리 중단</span>
+        </div>
+        <p className="notice warning">
+          답변 생성 과정이 지연되거나 무한 반복되어 중단되었습니다.
+          조금 더 명확하거나 구체적인 질문을 입력해 주시기 바랍니다.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="result-head">
