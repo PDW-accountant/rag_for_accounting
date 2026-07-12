@@ -1,10 +1,10 @@
 """온톨로지 구축 파이프라인 + CLI
 
 파이프라인 4단계:
-  1. parse_markdown    → Standard/Section/Subsection 노드 + CONTAINS 엣지
+  1. parse_markdown    → Standard/Section/Subsection 노드 + CONTAINS 엣지 + 헤딩·본문 어노테이션 기반 REFERENCES 엣지(일부, to_id는 아직 빈 상태)
   2. detect_candidates → 엣지가 있을 법한 후보 문장 (정규식 필터)
   3. extract_edges     → 후보 문장 → EdgeCandidate 목록 (LLM 판별)
-  4. resolve_edges     → EdgeCandidate의 target_ref(원문) → 노드 ID 변환
+  4. resolve_edges     → 그래프에 남은 모든 unresolved_target(EdgeCandidate에서 온 것과 1단계에서 직접 추출한 것 모두) → 노드 ID 변환
 
 CLI 사용법:
   uv run python -m src.db.ontology.builder \\

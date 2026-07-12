@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Benchmark 데이터 파일 경로 (프로젝트 루트 기준)
+# Benchmark 데이터 파일 경로 — 이 파일 기준 세 단계 위인 프로젝트 루트를 기준으로 data/test_data/benchmark.jsonl을 가리킨다.
 BENCHMARK_PATH = Path(__file__).parent.parent.parent / "data" / "test_data" / "benchmark.jsonl"
 
 

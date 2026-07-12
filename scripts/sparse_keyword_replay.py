@@ -133,7 +133,10 @@ def _arm_input_tokens(arm_key, case, keywords) -> list[str]:
 
 
 def extract_keywords(query: str) -> list[str]:
-    """질의에서 검색용 키워드를 LLM으로 뽑는다. 실패 시 빈 리스트(폴백은 호출자가 판단)."""
+    """
+    질의에서 검색용 키워드를 LLM으로 뽑는다.
+    API 호출·JSON 파싱 자체가 실패하면 예외를 그대로 던지고, 응답은 왔지만 유효한 키워드가 하나도 없으면 빈 리스트를 반환한다.
+    """
     from src.utils.llm_client import client
 
     resp = client.chat.completions.create(

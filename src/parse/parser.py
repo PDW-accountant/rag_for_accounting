@@ -99,9 +99,10 @@ class DoclingParser:
         처리 단계:
             1단계: 파일 경로를 Path 객체로 변환 (문자열이 들어와도 안전하게 처리)
             2단계: DocumentConverter로 PDF를 분석 (텍스트 추출 + 레이아웃 분석)
-            3단계: 분석 결과에서 마크다운 텍스트를 추출
-            4단계: 분석 결과에서 표(table) 데이터를 추출
-            5단계: 모든 결과를 ParsedDocument 객체에 담아서 반환
+            3단계: Reading Order를 재정렬 (위→아래, 왼→오른 순서로 교정)
+            4단계: 분석 결과에서 마크다운 텍스트를 추출
+            5단계: 분석 결과에서 표(table) 데이터를 추출
+            6단계: 모든 결과를 ParsedDocument 객체에 담아서 반환
 
         Args:
             file_path: 파싱할 PDF 파일의 경로 (예: "data/회계보고서.pdf")
@@ -122,8 +123,8 @@ class DoclingParser:
         doc = result.document
 
         # ── 2.5단계: Reading Order 재정렬 ──
-        # Docling 기본 reading order를 재귀 XY-Cut + 근접 클러스터링으로 교정합니다.
-        # Top→Down, Left→Right 원칙에 맞게 body.children 순서를 재정렬합니다.
+        # Docling 기본 reading order를 페이지별로 top→down(위→아래)으로 정렬한 뒤,
+        # 같은 라인끼리는 left→right(왼→오른)로 재정렬해 교정합니다.
         from src.parse.reading_order import reorder_reading_order
         doc = reorder_reading_order(doc)
 
@@ -158,7 +159,7 @@ class DoclingParser:
 
         병합 시 두 번째 테이블의 헤더 처리:
           - 첫 번째 테이블과 헤더가 동일하면 → 반복 헤더이므로 제거
-          - 숫자 헤더(0,1,2...)면 → 헤더 없는 연속이므로 그대로 행으로 추가
+          - 헤더가 다르면(pandas가 자동으로 매기는 숫자 헤더 0,1,2... 포함) → 반복 헤더가 아니므로 그대로 행으로 추가
         """
         if not doc.tables:
             return []

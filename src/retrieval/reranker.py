@@ -59,7 +59,7 @@ def rerank_chunks(original_query: str, chunks: list[RetrievedChunk]) -> list[Rer
     """
     Cross-Encoder로 질의-문서 쌍의 관련도를 재산출하여 정렬한다.
     유틸리티 수준에서는 threshold 기반 필터링을 수행하지 않는다.
-    rerank 노드애서 USE_RERANKER를 사전 확인한 뒤 호출한다.
+    rerank 노드에서 USE_RERANKER를 사전 확인한 뒤 호출한다.
 
     Args:
         original_query: 사용자 원문 또는 재작성된 쿼리
@@ -86,19 +86,21 @@ def rerank_chunks(original_query: str, chunks: list[RetrievedChunk]) -> list[Rer
         ]
 
         # 점수 내림차순 정렬
-        # TODO: Threshold 기반 필터링 추가 필요
+        # Threshold 기반 필터링은 이 유틸리티가 아닌 호출자(rerank 노드)의 책임이다(바로 위 독스트링 참고).
         scored_results.sort(key=lambda x: x.rerank_score, reverse=True)
         
         # RerankingResult 반환
         return scored_results
 
     except RerankFailureError:
-        # 상위 노드에서는 RerankFailureError: 리랭킹 과정 중 예상치 못한 오류 발생 : {오류 내용}으로 표시
+        # 상위 노드(rerank())는 이 예외를 잡아 1차 검색 결과로 조용히 폴백하고, error_logs에 오류 내역을 기록한다.
+        # 재검색을 유발하지는 않는다.
         raise
     except Exception as e:
         # 만약 재시도 후에도 실패하여 Fallback 처리가 필요하다면 호출부에서 담당한다.
         # 시스템 예외는 AccountingRAGError로 래핑하지 않고 원본 타입 그대로 전파한다.
-        # rerank_chunks() 노드의 except Exception 블록에서 logger.critical 기록 후 파이프라인 중단
+        # 이 함수는 error 레벨로만 기록하고 그대로 재전파한다.
+        # 상위 rerank() 노드가 이 예외를 다시 잡아 critical로 기록하고 파이프라인을 중단한다.
         logger.error(f"[{type(e).__name__}] 리랭킹 모델 호출 중 시스템 에러: {e}", exc_info=True)
         raise
 

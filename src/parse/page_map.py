@@ -131,7 +131,7 @@ def marker_pages(content: str) -> list[int]:
 
 
 def pages_from_markers(content: str) -> tuple[int, int] | None:
-    """마커 N은 'N페이지 시작' 경계 — 청크는 (N-1, N)에 걸친 것으로 부여한다.
+    """여러 마커 N이 있으면 각 N이 'N페이지 시작' 경계이므로, 청크는 가장 작은 N에서 1을 뺀 페이지부터 가장 큰 N까지에 걸친 것으로 부여한다.
 
     앵커 정렬이 불가능한 스캔본 PDF의 폴백 소스.
     """

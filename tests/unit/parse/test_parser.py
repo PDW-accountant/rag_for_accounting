@@ -6,6 +6,7 @@
     - DoclingParser 인스턴스 생성 및 설정값 보존
     - parse() 메서드의 반환 타입(ParsedDocument) 규격 검증
     - table_to_text() 표 → 텍스트 변환 로직
+    - ParsedDocument가 parser_dtos·schemas 두 경로에서 동일 클래스로 정의되는지 검증
 
 TODO: 실제 Docling 연동 후 @pytest.mark.skip을 제거하고 Mock → 실제 호출로 교체
 """

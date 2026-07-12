@@ -15,7 +15,7 @@ load_dotenv()
 logger = get_logger(__name__)
 
 _pool: ConnectionPool | None = None # 전역 커넥션 풀
-_lock = threading.Lock()    # init_pool() 이중 호출 방지용
+_lock = threading.Lock()    # init_pool()·close_pool()이 전역 _pool을 동시에 건드리지 않도록 보호
 
 
 def init_pool() -> None:

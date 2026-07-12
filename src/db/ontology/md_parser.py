@@ -13,7 +13,7 @@ _PARA_ANNOT_RE = re.compile(r'\(문단\s*([^)]+)\)\s*$')
 
 def _slugify(text: str) -> str:
     # 절·소절 제목을 노드 ID의 일부로 만들기 위해 공백을 _로 치환하고 40자로 자른다.
-    # 예: "최초 인식" → "gaap-ch6-s1-최초_인식"
+    # 예: "최초 인식" → "최초_인식" (접두어는 호출부에서 별도로 붙인다)
     return re.sub(r'\s+', '_', text.strip())[:40]
 
 
@@ -42,8 +42,9 @@ def parse_markdown(
       ### (H3)       → Subsection 노드 (content/paragraphs 둘 다 비면 skip)
       #### + (H4+)   → 문단 번호 또는 하위 항목 → 현재 노드의 content에 누적
 
-    반환된 그래프에는 CONTAINS 엣지만 들어 있다.
-    REFERENCES/EXCLUDES/HAS_CONDITION 엣지는 builder.py에서 LLM을 통해 추가된다.
+    반환된 그래프에는 CONTAINS 엣지와, 헤딩·본문 끝의 "(문단 X.X)" 어노테이션에서 정규식으로 직접
+    추출한 REFERENCES 엣지(to_id는 아직 빈 채로)가 들어 있다.
+    이 외의 REFERENCES와 EXCLUDES·HAS_CONDITION 엣지는 builder.py에서 LLM을 통해 추가로 채워진다.
     """
     graph = OntologyGraph()
     standard = OntologyNode(
@@ -225,7 +226,8 @@ def parse_markdown(
             # 헤딩 끝의 "(문단 X.X)" 어노테이션 추출 → 즉시 REFERENCES 엣지 생성
             m_annot = _PARA_ANNOT_RE.search(heading_text)
             if m_annot:
-                # Subsection이 살아있으면 우선 사용, 없으면 Section으로 fallback (or 단락 평가)
+                # Subsection이 살아있으면 우선 사용, 없으면 Section으로 대체한다.
+                # (current_subsection or current_section — 파이썬 or는 앞 값이 참이면 그 값을 그대로 반환하는 단락 평가 성질을 이용한다.)
                 from_node = current_subsection or current_section
                 if from_node:
                     graph.edges.append(OntologyEdge(

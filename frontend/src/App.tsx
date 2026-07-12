@@ -509,7 +509,7 @@ function PdfViewerModal({ target, onClose }: { target: ViewerTarget; onClose: ()
             />
           )}
         </div>
-        {/* 6/14 회의 결정: 원문 노출 시 한국회계기준원 저작권 표기 */}
+        {/* 6/14 회의 결정: 한국회계기준원 저작권 표기. PDF 표시 여부(available)와 무관하게 뷰어 모달을 열면 항상 노출한다 */}
         <p className="viewer-copyright">
           ⓒ 한국회계기준원. 본 문서의 저작권은 한국회계기준원에 있으며, 조항 원문 확인 용도로만
           제공됩니다.

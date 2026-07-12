@@ -28,7 +28,7 @@
 
 | 용어 | 뜻 |
 |---|---|
-| **조항 (Subsection)** | 회계기준서의 최소 인용 단위. 검색 정확도 1순위 타깃(Hit@1/MRR). |
+| **조항** | 회계기준서의 최소 인용 단위. 문단 번호(예: "6.14", `Subsection.paragraphs`의 원소)로 식별하며, 검색 정확도 1순위 타깃(Hit@1/MRR)도 이 문단 번호 기준으로 채점한다. |
 | **RRF (Reciprocal Rank Fusion)** | Dense·Sparse 검색 결과를 순위 기반으로 병합(`RRF_K=60`). |
 | **HIL (Human-in-the-Loop)** | 답변 신뢰도 미달 시 사용자에게 재질의를 요청하는 분기. |
 | **CRAG** | 평가 임계치 미달 시 재검색하는 루프(`MAX_REWRITE_COUNT=3`). |

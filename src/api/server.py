@@ -129,9 +129,11 @@ def resume(req: ResumeRequest) -> WorkflowResponse:
 def document_pdf(
     document_id: str = PathParam(pattern=r"^[a-z0-9-]+$"),  # 경로 탈출(..%2F 등) 라우팅 단계 차단
 ) -> FileResponse:
-    """원문 PDF 서빙 (#196) — 소재 규약은 resolve_pdf_path(PDF_DIR, BYO 정합).
+    """
+    원문 PDF 서빙 — 파일 경로는 resolve_pdf_path(document_id, PDF_DIR)로 찾는다.
+    이 프로젝트는 저작권 문제로 원문 PDF를 리포지토리에 넣지 않고 사용자가 직접 준비해 PDF_DIR에 두는 방식을 쓰므로, 파일이 이 규칙대로 놓여 있어야 조회에 성공한다.
 
-    파일이 없거나 매핑이 모호하면 404 — React 뷰어는 안내 메시지로 강등한다(DoD 폴백).
+    파일이 없거나 매핑이 모호하면 404를 반환한다 — 이 경우 React 뷰어는 PDF 보기 버튼 대신 안내 메시지를 보여주는 것으로 처리를 끝낸다.
     """
     pdf_path = resolve_pdf_path(document_id, PDF_DIR)
     if pdf_path is None:

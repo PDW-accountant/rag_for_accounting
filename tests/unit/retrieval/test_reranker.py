@@ -14,7 +14,7 @@ from src.utils.exception import RerankFailureError, ScoreThresholdError
 
 @pytest.mark.unit
 class TestRerank:
-    """rerank() 헬퍼 함수 단위 테스트"""
+    """rerank_chunks() 헬퍼 함수 단위 테스트"""
 
     @patch('src.retrieval.reranker.compute_relevance_scores')
     def test_multiple_chunks_returns_descending_order(self, mock_compute, sample_chunks):
@@ -50,7 +50,7 @@ class TestRerank:
     def test_below_threshold_scores_returns_sorted_list(self, mock_compute, sample_chunks):
         """점수가 RERANK_THRESHOLD 미만이어도 필터링 없이 정렬된 리스트를 반환하는지 확인
 
-        NOTE: rerank()는 임계값 필터링을 수행하지 않는다. 필터링은 rerank_chunks() 노드의 책임이다.
+        NOTE: rerank_chunks()는 임계값 필터링을 수행하지 않는다. 필터링은 rerank() 노드의 책임이다.
         """
         mock_compute.return_value = [0.1, 0.2, 0.3]
 
@@ -66,7 +66,7 @@ class TestRerank:
     def test_system_exception_propagates_without_wrapping(self, mock_compute, sample_chunks):
         """모델 장애 발생 시 원본 시스템 예외가 AccountingRAGError로 래핑되지 않고 그대로 전파되는지 확인
 
-        NOTE: 시스템 예외는 rerank_chunks() 노드의 except Exception 블록에서 logger.critical 기록 후 파이프라인 중단.
+        NOTE: 시스템 예외는 rerank() 노드의 except Exception 블록에서 logger.critical 기록 후 파이프라인 중단.
         """
         mock_compute.side_effect = Exception("예상치 못한 에러 발생")
 
@@ -205,7 +205,7 @@ class TestRerankNode:
     def test_success_path_sets_needs_reretrieval_false(self, mock_compute, sample_chunks):
         """정상 경로: 임계치 통과 시 needs_reretrieval=False가 반환 dict에 명시되는지 검증
 
-        rerank_chunks의 모든 반환 경로에서 needs_reretrieval이 명시되도록 한 설계를 고정한다.
+        rerank()의 모든 반환 경로에서 needs_reretrieval이 명시되도록 한 설계를 고정한다.
         """
         mock_compute.return_value = [0.9] * len(sample_chunks)   # RERANK_THRESHOLD(0.5) 이상
         state = GraphState(

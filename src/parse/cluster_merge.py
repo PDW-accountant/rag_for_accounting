@@ -273,9 +273,9 @@ def merge_marker_clusters(clusters: list[Cluster]) -> list[Cluster]:
 # ======================================================================
 # 근접 클러스터링 — 공간적으로 가까운 아이템끼리 묶기
 # ======================================================================
-# reading order 정렬 전에, 가까이 있는 요소들을 하나의 클러스터로 묶어서
-# "한 덩어리"로 읽히도록 합니다.
-# 주변에 더 이상 가까운 context가 없을 때까지 계속 묶습니다 (Union-Find).
+# 가까이 있는 요소들을 하나의 클러스터로 묶어 "한 덩어리"로 읽히게 합니다.
+# 주변에 더 이상 가까운 context가 없을 때까지 계속 묶습니다.
+# NOTE: 현재 어떤 파이프라인에도 연결돼 있지 않다. reading order 재정렬에 쓰려면 별도 통합이 필요하다.
 
 from src.parse.parser_dtos import _ItemInfo, CLUSTER_DISTANCE_FACTOR
 

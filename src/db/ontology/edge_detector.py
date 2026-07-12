@@ -22,7 +22,7 @@ _PATTERNS = [
 
 
 def detect_candidates(content: str) -> list[str]:
-    """Subsection의 전체 텍스트에서 엣지 후보 줄만 골라 반환한다.
+    """Subsection 또는 Section(H3 없이 H2 바로 아래 문단이 있는 경우)의 전체 텍스트에서 엣지 후보 줄만 골라 반환한다.
 
     반환값은 줄 단위 문자열 목록이며, 빈 줄은 포함하지 않는다.
     """

@@ -75,7 +75,7 @@ class TestWorkflowConstruction:
         assert ("human_review", "rewrite") in conditional_edges  # 재작성 요청 → rewrite 루프백
 
         # 조건부 라우팅 엣지 확인 (evaluate → rewrite, evaluate → generate)
-        assert ("evaluate", "rewrite") in conditional_edges # evaluate에서 evaluate로 재귀
+        assert ("evaluate", "rewrite") in conditional_edges # evaluate에서 rewrite로 재귀(CRAG 루프)
         assert ("evaluate", "generate") in conditional_edges # evaluate에서 generate로 종료
 
     def test_workflow_initial_state_structure(self, initial_state):
@@ -137,7 +137,7 @@ class TestCRAGLoopPath:
             ),
             rewrite_count=1
         )
-        assert route_after_evaluate(state) == "rewrite" # evaluate에서 evaluate로 재귀
+        assert route_after_evaluate(state) == "rewrite" # evaluate에서 rewrite로 재귀(CRAG 루프 재진입)
 
     def test_route_after_evaluate_to_generate_on_max_count(self):
         """MAX_REWRITE_COUNT 도달 시 needs_external=True라도 generate 반환 검증"""

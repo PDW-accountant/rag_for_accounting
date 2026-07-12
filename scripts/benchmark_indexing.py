@@ -136,7 +136,8 @@ def _load_chunks(ontology_dir: Path, chapters: list[str] | None, synthetic_overs
 def _measure_indexing(chunks: list, collection: str, batch_size: int) -> dict:
     """index_documents의 배치 루프를 재현해 구간별 시간을 분해 측정한다.
 
-    ※ vector_store.index_documents(151~179)와 동일 순서를 복제. 로직 변경 시 동기화 필요.
+    ※ vector_store.index_documents의 배치 루프(청크별 count_tokens 필터 → 통과분만 embed_texts → _upsert_batch → 매 배치 끝의 _release_heap)와 동일 순서를 복제한다. 
+    로직이 바뀌면 이 함수도 함께 고쳐야 한다.
     """
     from src.db.vector_store import (
         _ensure_collection,

@@ -6,95 +6,85 @@
 
 *작성일 2026-06-13 · 코드 실태 기준.*
 
-## 데이터 스키마 요약 (`src/models/schemas.py`)
+## 데이터 스키마
 
-| 스키마 | 필드 |
-|---|---|
-| `ParsedDocument` | title:str<br>text:str (markdown)<br>tables:list[dict]<br>metadata:dict |
-| `RewrittenQuery` | original_query:str<br>strategy:str (`hyde`\|`decompose`\|`stepback`\|`bypass`)<br>search_queries:list[str] |
-| `RetrievedChunk` | chunk_id:str<br>document_id:str<br>content:str<br>score:float<br>metadata:`ChunkMetadata` |
-| `ChunkMetadata` | ontology_node_id<br>node_type<br>standard_type<br>chapter<br>(+extra="allow") |
-| `RerankingResult` | chunk:`RetrievedChunk`<br>rerank_score:float |
-| `EvaluationResult` | is_relevant:bool<br>needs_external:bool<br>confidence:float<br>reasoning:str |
-| `Citation` | document_id:str<br>chunk_id:str<br>content:str<br>relevance_score:float |
-| `FinalResponse` | answer:str<br>citations:list[`Citation`]<br>is_answerable:bool<br>confidence_score:float |
-| `IndexingResult` | document_id:str<br>chunk_count:int<br>status (`success`\|`partial`\|`failed`)<br>skipped_chunks:list[`SkippedChunk`] |
-| `SkippedChunk` | chunk_id:str<br>error_type:str<br>reason:str — 적재 누락 청크 추적 |
+FUNC들이 주고받는 데이터 타입은 `src/models/schemas.py`(공용 스키마)와 `src/models/state.py`(`GraphState`)가 정본이다.
+필드를 이 문서에 다시 나열하면 코드가 바뀔 때마다 여기도 같이 고쳐야 해서 금방 어긋난다 — 정확한 필드는 소스를 직접 본다.
 
 ---
 
 ## FUNC-001 — 문서 파싱 (`src/parse/`)
-- **입력**: `file_path: str|Path` (PDF). 선택: overlap/containment_threshold(0.15), converter 주입
-- **출력**: `ParsedDocument` (text는 마크다운, tables는 `{headers:[...], rows:[[...]]}`)
-- **진입**: `DoclingParser().parse(path)`
+PDF 한 개를 받아 Docling으로 텍스트·표를 뽑고, 페이지 안의 읽는 순서를 사람이 읽는 순서(위→아래, 왼→오른)로 재정렬한 뒤
+마크다운 문서(`ParsedDocument`)로 돌려준다. `DoclingParser().parse(path)`로 진입한다.
 
 ## FUNC-002 — 청킹/온톨로지 (`src/db/ontology/`)
-- **입력**: 마크다운 경로 또는 `ParsedDocument`
-- **출력**: `OntologyGraph`(노드 `Standard`/`Section`/`Subsection` + edges) → `RetrievedChunk[]`(score=0.0, metadata.ontology_node_id)
-- **진입**: `build_graph(md_path, standard_id, standard_type)` → `chunk_graph(graph, source_path)`
-- **에러**: OT-103(구조파싱실패)
+마크다운 문서를 장·절·소절(Standard/Section/Subsection) 구조로 나누고, 조항 간 참조(REFERENCES 등) 관계를
+정규식과 LLM으로 함께 채운 뒤, 그 구조를 검색 가능한 청크로 잘라낸다.
+`build_graph(md_path, standard_id, standard_type)`로 구조를 만들고 `chunk_graph(graph, source_path)`로 청크를 뽑는다.
+구조를 못 알아내면 OT-103을 낸다.
 
 ## FUNC-003 — 인덱싱 (`src/db/vector_store.py`, `src/utils/embedding.py`)
-- **입력**: `list[RetrievedChunk]`, collection(기본 `chunks`)
-- **출력**: `IndexingResult`
-- **진입**: `index_documents(chunks, collection)`. 임베딩 KURE-v1(1024d) → pgvector HNSW upsert(멱등 chunk_id)
-- **에러**: IX-201(토큰 한도 초과 → 부분 커밋), SE-102(DB)
+청크 목록을 KURE-v1으로 임베딩해 pgvector에 저장한다. 이미 있는 chunk_id는 갱신하고 없으면 새로 넣는다(멱등).
+토큰 한도를 넘는 청크는 IX-201로 건너뛰고, DB 오류는 SE-102로 기록한다.
+`index_documents(chunks, collection)`으로 진입한다.
 
 ## FUNC-004 — 질의 재구성 (`src/agent/nodes/rewrite.py`)
-- **입력**: `GraphState`(original_query, standard_filter, human_feedback)
-- **출력(상태 갱신)**: rewritten_query:`RewrittenQuery`, is_accounting_query:bool, classification_confidence:float
-- **진입**: `rewrite_query(state)`. classify_and_select → hyde/decompose/stepback
-- **에러**: CM-002(LLM)
+사용자 질의가 회계 질문인지 먼저 판별하고, 아니면 조기 종료한다.
+회계 질문이면 질의 성격에 따라 hyde(가상 답변 생성)·decompose(하위 질문 분해)·stepback(일반 원칙으로 추상화) 중
+하나를 골라 검색용 쿼리를 만든다. LLM 호출이 실패하면 CM-002를 내고 원문 쿼리로 폴백한다.
+`rewrite_query(state)`로 진입한다.
 
 ## FUNC-005 — 하이브리드 검색 (`src/retrieval/searcher.py`)
-- **입력**: `query:str`, `top_k:int=10`, `metadata_filter:dict|None`
-- **출력**: `list[RetrievedChunk]`
-- **진입**: `search_chunks(...)` = `dense_search`(pgvector cosine) + `sparse_search`(tsvector) → `reciprocal_rank_fusion(k=60)`
-- **동작**: 한쪽 실패 시 단독 진행, 0건 시 top_k×2 재탐색, 최종 0건 시 SE-103
-- **에러**: SE-101(타임아웃), SE-102(DB), SE-103(결과없음)
+pgvector 코사인 유사도 기반 dense 검색과 PostgreSQL 전문검색 기반 sparse 검색을 각각 돌린 뒤,
+RRF(순위 기반 병합, k=60)로 합친다. 한쪽이 실패해도 다른 쪽 결과로 계속 진행하고, 결과가 없으면
+top_k를 늘려 한 번 더 찾아본다. 그래도 없으면 SE-103을 낸다. `search_chunks(...)`로 진입한다.
 
 ## FUNC-006 — 리랭킹 (`src/retrieval/reranker.py`)
-- **입력**: `query:str`, `list[RetrievedChunk]`
-- **출력**: `list[RerankingResult]` (rerank_score 내림차순, RERANK_THRESHOLD 필터 — 기본값은 config.py, `.env`로 조정 가능)
-- **진입**: `rerank_chunks(...)`. `USE_RERANKER`(기본 false, `.env` 토글)가 꺼져 있으면 워크플로우가 호출 스킵
-- **에러**: RR-201(모델/점수 실패), RR-202(임계 초과 청크 0건)
+검색된 청크를 Cross-Encoder 모델로 질의와의 관련도를 다시 매겨 정렬한다.
+`USE_RERANKER`가 꺼져 있으면(기본값) 이 단계를 건너뛴다.
+모델 호출이나 점수 계산이 실패하면 RR-201, 임계값을 넘는 청크가 하나도 없으면 RR-202를 낸다.
+`rerank_chunks(...)`로 진입한다.
 
 ## FUNC-007 — 적합성 평가 / CRAG (`src/agent/nodes/evaluate.py`)
-- **입력**: `GraphState`(reranked_chunks/retrieved_chunks)
-- **출력**: evaluation:`EvaluationResult`. needs_external/needs_reretrieval 라우팅 신호
-- **진입**: `evaluate_context(state)`
-- **에러**: EV-301(평가 파싱), EV-302(일관성 위반), EV-303(할루시네이션 감지)
+검색된 컨텍스트가 질의에 답하기 충분한지 LLM으로 판단한다. 부족하면 needs_external·needs_reretrieval
+신호를 세워 워크플로우가 재검색(rewrite로 되돌아가는 CRAG 루프)을 돌게 한다.
+평가 응답을 못 읽으면 EV-301, 결과가 내부적으로 모순되면 EV-302, 근거 없는 주장이 감지되면 EV-303을 낸다.
+`evaluate_context(state)`로 진입한다.
 
 ## FUNC-008 — 답변·인용 생성 (`src/agent/nodes/generate.py`)
-- **입력**: `GraphState`(context chunks)
-- **출력**: final_response:`FinalResponse`, retrieval_score, generation_score
-- **진입**: `generate_response(state)`. [n] 인용 추출 + GN-401 인용 가드
-- **에러**: GN-401(응답 포맷), GN-402(컨텍스트 길이 초과)
+컨텍스트를 근거로 최종 답변을 생성하고, 답변 안의 `[n]` 표시를 실제 인용 청크로 연결한다.
+인용 없이 답변 가능이라고 하면 GN-401, 컨텍스트가 토큰 한도를 넘으면 GN-402를 낸다.
+`generate_response(state)`로 진입한다.
 
 ## FUNC-009 — 워크플로우 제어 (`src/agent/workflow.py`)
-- **상태**: `GraphState`(Pydantic, 증분 merge)
-- **노드/엣지**: rewrite → (early_exit | human_review) → search → rerank → evaluate →(CRAG 루프)→ generate → END
-- **라우팅**: `route_after_rewrite`, `route_after_human_review`, `route_after_evaluate`(needs_reretrieval 최우선)
-- **제어 상수**: MAX_REWRITE_COUNT=3, MAX_HIL_COUNT=5
-- **진입**: `run_workflow(query, standard_filter)`, `resume_workflow(thread_id, decision)`
-- **복원력**: `handle_node_errors` 데코레이터(예외→error_logs 기록 후 계속), GraphRecursionError·TimeoutError 폴백(재전파 없이 구조화 GraphState 반환).
+rewrite→search→rerank→evaluate→generate 노드를 LangGraph StateGraph로 엮고, 평가 미달 시 rewrite로
+돌아가는 CRAG 루프(최대 `MAX_REWRITE_COUNT=3`회)와 사람 확인이 필요한 HIL 중단·재개(최대 `MAX_HIL_COUNT=5`회)를
+라우팅한다. 노드에서 예외가 나면 `handle_node_errors` 데코레이터가 error_logs에 기록하고 계속 진행하며,
+반복 한도 초과(GraphRecursionError)나 시간 초과(TimeoutError)에는 예외를 다시 던지지 않고 정해진 폴백 응답을
+돌려준다. `run_workflow(query, standard_filter)`·`resume_workflow(thread_id, decision)`로 진입한다.
 
 ---
 
 ## 에러코드 카탈로그 (`src/utils/exception.py`)
 
-| 코드 | 노드 | 의미 |
+| 코드 | 노드 | 발생 시점 |
 |---|---|---|
-| CM-001 | * | 설정/환경변수 누락 |
-| CM-002 | * | LLM 호출 경로 실패(연결·인증·응답파싱) |
-| CM-003 | * | 문서 파싱 실패 (클래스 존재, 미배선 — 착지점 `DoclingParser.parse`) |
-| OT-103 | ontology | 구조파싱실패 |
-| SE-101/102/103 | search/index | 타임아웃 / DB / 결과없음 |
-| RR-201/202 | rerank | 모델실패 / 임계미달 |
-| IX-201 | index | 임베딩 토큰 한도 초과 |
-| EV-301/302/303 | evaluate | 평가파싱 / 일관성 / 할루시네이션 |
-| GN-401/402 | generate | 응답포맷 / 컨텍스트길이 |
-| TIMEOUT | workflow | step_timeout 초과(그래프 레벨, 노드 특정 불가 — `exception.py` 아닌 `workflow.py` 폴백이 직접 기록) |
-| RECURSION_LIMIT | workflow | recursion_limit 초과(재시도 소진, 그래프 레벨·노드 특정 불가 — `workflow.py` 폴백이 직접 기록) |
+| CM-001 | * | 설정·환경변수가 없을 때 |
+| CM-002 | * | LLM 호출이 실패했을 때(연결·인증·응답 파싱) |
+| CM-003 | * | 문서 파싱 실패용 예외 — 클래스는 있지만 아직 이 예외를 실제로 던지는 코드가 없다(향후 `DoclingParser.parse`에 연결 예정) |
+| OT-103 | ontology | 문서 구조를 못 알아냈을 때 |
+| SE-101 | search | pgvector 검색 응답이 시간을 초과했을 때 |
+| SE-102 | search 또는 index | DB 연결이 끊기거나 쿼리 실행이 실패했을 때 |
+| SE-103 | search | 검색 결과가 없거나 임계값을 만족하는 결과가 하나도 없을 때 |
+| RR-201 | rerank | 리랭킹 모델 호출이나 점수 계산이 실패했을 때 |
+| RR-202 | rerank | 리랭킹 후 임계값을 넘는 청크가 하나도 없을 때 |
+| IX-201 | index | 임베딩 토큰 한도를 넘겨 해당 청크를 건너뛸 때 |
+| EV-301 | evaluate | 평가 응답을 정해진 형식으로 못 읽었을 때 |
+| EV-302 | evaluate | 평가 결과가 내부적으로 모순될 때 |
+| EV-303 | evaluate | 근거 없는 주장(환각)이 감지됐을 때 |
+| GN-401 | generate | 답변 가능이라면서 인용 근거가 없을 때 |
+| GN-402 | generate | 컨텍스트가 모델의 토큰 한도를 넘었을 때 |
+| TIMEOUT | workflow | 노드 하나가 step_timeout을 넘었을 때(그래프 레벨이라 어느 노드인지 특정 불가 — `exception.py`가 아니라 `workflow.py`의 폴백이 직접 기록) |
+| RECURSION_LIMIT | workflow | 재시도가 그래프의 recursion_limit을 다 써서 소진됐을 때(그래프 레벨이라 어느 노드인지 특정 불가 — `exception.py`가 아니라 `workflow.py`의 폴백이 직접 기록) |
 
 > `ErrorLog`(timestamp KST, node, error_type, message)로 `GraphState.error_logs`에 누적.

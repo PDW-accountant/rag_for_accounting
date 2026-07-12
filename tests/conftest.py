@@ -19,5 +19,5 @@ def initial_state():
 
 @pytest.fixture
 def workflow_app():
-    """컴파일된 LangGraph 워크플로우 앱 피처"""
+    """컴파일된 LangGraph 워크플로우 앱 픽스처"""
     return build_workflow()

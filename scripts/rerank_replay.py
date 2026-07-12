@@ -156,7 +156,7 @@ def run_replay(dump_file: str, ks: tuple[int, ...], out_dir: str) -> int:
         "corpus": dump["corpus"],
         "ks": list(ks),
         "baseline": {},   # k → {case_id: first_hit}
-        "models": {},     # model_key → {"by_k": {k: {case_id: first_hit}}, "latency": ..., ...}
+        "models": {},     # model_key → {"by_k": {k: {"first_hits": {case_id: first_hit}, "retrieval_pass": int}}, "latency_p50_s": float, ...}
     }
 
     # ── 베이스라인(리랭크 없음): k별 RRF 순서 그대로 채점 ──

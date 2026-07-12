@@ -53,7 +53,7 @@ class OntologyEdge(BaseModel):
 
     order: int = 0              # CONTAINS 전용: 자식 노드의 순서
     paragraph: str = ""         # REFERENCES·EXCLUDES·HAS_CONDITION 전용:
-                                # 참조가 발생한 하위 항목 번호. 예: "6.14⑵㈏"
+                                # 참조가 발생한 문단의 정식 번호(하위 항목 표기 없이). 예: "6.14"
     source_text: str = ""       # 참조·제외·조건이 등장한 원문 문장
 
     include: list[str] = Field(default_factory=list)
@@ -68,7 +68,8 @@ class OntologyEdge(BaseModel):
     # to_id Subsection 안에서 어느 문단을 가리키는지 기록해 RAG 시 정밀 추출에 활용한다.
 
     unresolved_target: str = ""
-    # unresolved_target: to_id가 빈 경우 LLM이 반환한 원문 참조 텍스트.
+    # unresolved_target: to_id가 빈 경우의 원문 참조 텍스트. LLM이 판별한 target_ref(EdgeCandidate 경로)이거나,
+    # 헤딩·본문의 "(문단 X.X)" 어노테이션을 정규식으로 직접 추출한 값일 수 있다.
     # 예: "제8장 문단 8.2"
     # resolver가 노드 ID로 변환에 성공하면 to_id를 채우고 이 필드는 비워진다.
 

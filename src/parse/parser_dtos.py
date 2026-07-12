@@ -71,8 +71,10 @@ class _ItemInfo:
     width: float
 
 # 두 아이템의 수직 겹침이 이 비율 이상이면 "같은 라인"으로 간주
+# NOTE: 현재 미사용 상수다. 같은 라인 판별은 실제로 SAME_LINE_RATIO를 쓴다.
 SAME_LINE_OVERLAP_RATIO = 0.5
 # XY-Cut에서 gap이 이 값(평균 아이템 높이 대비 비율) 이상이면 분할
+# NOTE: 현재 미사용 상수다. 실제 재정렬은 줄 단위 그룹핑 방식을 쓴다.
 MIN_GAP_RATIO = 0.3
 # 클러스터링: 아이템 간 거리가 이 값(평균 아이템 높이 배수) 이내면 같은 클러스터
 CLUSTER_DISTANCE_FACTOR = 1.5
