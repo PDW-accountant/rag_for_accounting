@@ -170,7 +170,7 @@ class TestIngestionPipeline:
 def patch_parser(source_path: str):
     """DoclingParser.parse를 모킹해 ParsedDocument를 반환한다.
 
-    parser 실제 스펙(`src/parse/parser.py`)대로 metadata={"source_path": ...}를 싣는다.
+    parser 실제 스펙(`src/ingest/parse/parser.py`)대로 metadata={"source_path": ...}를 싣는다.
     """
     parsed = ParsedDocument(
         title=Path(source_path).stem,

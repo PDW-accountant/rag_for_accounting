@@ -77,7 +77,7 @@ def _percentile(values: list[float], p: float) -> float:
 def _resolve_env(batch_size: int) -> dict:
     """처리량에 직접 영향을 주는 실행 환경을 결과에 스탬프한다(재현성)."""
     from src.utils.config import EMBEDDING_DEVICE
-    from src.utils.embedding import _resolve_device, _resolve_thread_count
+    from src.clients.embedding import _resolve_device, _resolve_thread_count
 
     return {
         "device": _resolve_device(EMBEDDING_DEVICE),
@@ -89,7 +89,7 @@ def _resolve_env(batch_size: int) -> dict:
 
 def _load_graph(path: Path):
     """저장된 온톨로지 그래프 JSON을 OntologyGraph로 역직렬화한다(main._load_graph_from_json과 동일)."""
-    from src.db.ontology.models import OntologyGraph
+    from src.ingest.ontology.models import OntologyGraph
 
     return OntologyGraph.model_validate_json(path.read_text(encoding="utf-8"))
 
@@ -116,7 +116,7 @@ def _synthetic_oversize(n: int) -> list:
 
 def _load_chunks(ontology_dir: Path, chapters: list[str] | None, synthetic_oversize: int) -> list:
     """data/ontology/gaap-ch*.json → chunk_graph로 실 청크 생성. 합성 초과 청크 보강."""
-    from src.db.ontology.chunker import chunk_graph
+    from src.ingest.ontology.chunker import chunk_graph
 
     json_files = sorted(ontology_dir.glob("gaap-ch*.json"))
     if chapters:
@@ -145,7 +145,7 @@ def _measure_indexing(chunks: list, collection: str, batch_size: int) -> dict:
         _upsert_batch,
         delete_collection,
     )
-    from src.utils.embedding import count_tokens, embed_texts
+    from src.clients.embedding import count_tokens, embed_texts
 
     # 깨끗한 상태에서 0부터 누적(HNSW 비선형성을 0→N으로 관측).
     # 테이블을 먼저 보장한 뒤 행을 비운다 — 첫 실행(테이블 부재)에서 DELETE가 ERROR 로그를 남기지 않도록 순서 주의.
@@ -347,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from src.db.connection import close_pool, init_pool
-    from src.utils.embedding import warmup_model
+    from src.clients.embedding import warmup_model
     from tests.utils.infra_check import check_docker_infrastructure
 
     infra_error = check_docker_infrastructure()

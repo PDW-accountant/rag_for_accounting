@@ -2,7 +2,7 @@
   "mcpServers": {
     "accounting-rag": {
       "command": "uv",
-      "args": ["run", "python", "-m", "src.mcp.server"]
+      "args": ["run", "python", "-m", "src.mcp_server.server"]
     }
   }
 }

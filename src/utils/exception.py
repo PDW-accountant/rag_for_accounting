@@ -65,7 +65,7 @@ class LLMAPIConnectionError(AccountingRAGError):
 class DocumentParseError(AccountingRAGError):
     """
     [CM-003] 문서 파일 파싱에 실패했을 때 발생하는 예외입니다.
-    착지점: src/parse/parser.py DoclingParser.parse() (converter.convert() /
+    착지점: src/ingest/parse/parser.py DoclingParser.parse() (converter.convert() /
     export_to_markdown() 실패 변환). raise 사이트 도입 전까지는 미배선 상태.
     """
     def __init__(self, message: str, node: NodeType):

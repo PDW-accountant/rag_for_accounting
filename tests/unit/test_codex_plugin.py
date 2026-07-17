@@ -51,7 +51,7 @@ class TestCodexPluginManifest:
 
 @pytest.mark.unit
 class TestCodexMcpConfig:
-    """.mcp.json이 기존 FastMCP 서버(src/mcp/server.py)를 올바르게 참조하는지 검증한다."""
+    """.mcp.json이 기존 FastMCP 서버(src/mcp_server/server.py)를 올바르게 참조하는지 검증한다."""
 
     def test_mcp_json_references_existing_server_module(self):
         """mcp server 모듈을 올바르게 참조하는지"""
@@ -65,8 +65,8 @@ class TestCodexMcpConfig:
             " ".join([cfg.get("command", "")] + cfg.get("args", []))
             for cfg in servers.values()
         ]
-        assert any("src.mcp.server" in cmd for cmd in launch_commands), (
-            ".mcp.json의 실행 커맨드가 src.mcp.server를 가리키지 않는다"
+        assert any("src.mcp_server.server" in cmd for cmd in launch_commands), (
+            ".mcp.json의 실행 커맨드가 src.mcp_server.server를 가리키지 않는다"
         )
 
 
@@ -102,7 +102,7 @@ class TestKaccountingSkill:
         # 스킬 본문의 `"GAAP"` 같은 값은 서버 시그니처의 Literal에서 손으로 옮겨 적은 사본이다.
         # 서버 enum이 바뀌면(값 개명·추가) 스킬은 옛 값을 계속 지시하는데,
         # 그 어긋남은 실행 시점의 pydantic 검증 에러로만 드러나고 단위 스위트는 통과하므로 여기서 잡는다.
-        from src.mcp import server
+        from src.mcp_server import server
 
         annotation = inspect.signature(server.query_standards).parameters[
             "standard_filter"

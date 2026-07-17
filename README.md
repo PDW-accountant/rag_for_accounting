@@ -127,7 +127,7 @@ codex plugin marketplace add .
 codex plugin add k-accounting@k-accounting-marketplace
 ```
 
-> MCP 서버(`src/mcp/server.py`)는 플러그인에 번들되어 있어 위 설치만으로 함께 등록됩니다 — Claude처럼 `mcp add`를 별도로 실행할 필요가 없습니다. DB·임베딩 서버가 떠 있어야 하고(`docker compose up -d database embedding`), **Codex 세션은 이 저장소 루트에서 열어야 합니다**.
+> MCP 서버(`src/mcp_server/server.py`)는 플러그인에 번들되어 있어 위 설치만으로 함께 등록됩니다 — Claude처럼 `mcp add`를 별도로 실행할 필요가 없습니다. DB·임베딩 서버가 떠 있어야 하고(`docker compose up -d database embedding`), **Codex 세션은 이 저장소 루트에서 열어야 합니다**.
 
 설치 후 동작 절차는 다음과 같습니다.
 

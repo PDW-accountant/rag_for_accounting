@@ -1,7 +1,7 @@
 """
 [FUNC-003/FUNC-005] 공유 임베딩 모듈 단위 테스트
 
-대상 모듈: src/utils/embedding.py
+대상 모듈: src/clients/embedding.py
 검증 범위:
     - _resolve_device(): "auto" 시 cuda→mps→cpu 우선순위, 명시값 패스스루
     - _resolve_thread_count(): 명시값/자동(max(1, cpu-2)) 산정

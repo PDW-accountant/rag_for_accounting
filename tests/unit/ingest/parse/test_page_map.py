@@ -1,5 +1,5 @@
 """
-src/parse/page_map.py — 청크 content ↔ PDF 페이지 정렬 코어 단위테스트 (순수 — Docling·DB 불필요).
+src/ingest/parse/page_map.py — 청크 content ↔ PDF 페이지 정렬 코어 단위테스트 (순수 — Docling·DB 불필요).
 
 export_to_markdown()이 잃는 페이지 정보를, Docling 텍스트 아이템(prov.page_no)으로 만든 페이지별 텍스트 맵과 청크 content(md 원문)의 앵커 라인 매칭으로 복원한다.
 

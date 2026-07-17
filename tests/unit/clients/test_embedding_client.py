@@ -1,5 +1,5 @@
 # 임베딩 서빙 연결부(src/client/embedding_client.py)와
-# 로컬/원격 디스패치(src/utils/embedding.py)의 단위 테스트.
+# 로컬/원격 디스패치(src/clients/embedding.py)의 단위 테스트.
 # 실제 서버·모델 없이 httpx와 클라이언트 함수를 mock으로 대체한다.
 import pytest
 from unittest.mock import patch, MagicMock

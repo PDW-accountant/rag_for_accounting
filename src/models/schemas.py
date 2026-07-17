@@ -30,7 +30,7 @@ class FinalResponse(BaseModel):
 class ParsedDocument(BaseModel):
     """파싱된 문서 — Docling 처리 결과 (FUNC-001 출력)
 
-    parser는 src/parse/parser_dtos.py를 통해 이 클래스를 재노출받아 사용한다.
+    parser는 src/ingest/parse/parser_dtos.py를 통해 이 클래스를 재노출받아 사용한다.
     """
     title: str
     text: str
@@ -66,7 +66,7 @@ class RewrittenQuery(BaseModel):
 class ChunkMetadata(BaseModel):
     """검색 청크의 메타데이터 — 온톨로지 노드 식별자 등 핵심 속성을 타입-세이프하게 보장한다.
 
-    명시 필드는 `src/db/ontology/models.py`의 `OntologyNode`와 정합을 맞춘다:
+    명시 필드는 `src/ingest/ontology/models.py`의 `OntologyNode`와 정합을 맞춘다:
       - ontology_node_id ↔ OntologyNode.id   (예: "gaap-ch6-s1-최초인식")
         ※ OntologyNode 쪽 필드명은 `id`이며, 청크 메타데이터에서는 룩업 의미를
           분명히 하기 위해 `ontology_node_id`로 부른다.

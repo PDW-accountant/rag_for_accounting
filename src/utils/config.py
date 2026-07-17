@@ -46,7 +46,7 @@ BATCH_SIZE: int = 100          # 인덱싱 배치 크기
 SEARCH_TIMEOUT_SECONDS: int = 5
 
 # 임베딩 모델 설정 — 이슈 #93에서 KURE-v1(자체호스팅, MIT 라이선스)로 확정
-# 인덱싱(FUNC-003)과 검색(FUNC-005)이 src/utils/embedding.embed_texts()를 공유하므로
+# 인덱싱(FUNC-003)과 검색(FUNC-005)이 src/clients/embedding.embed_texts()를 공유하므로
 # 모델·차원 불일치가 구조적으로 발생하지 않는다.
 EMBEDDING_MODEL: str = "nlpai-lab/KURE-v1"
 EMBEDDING_DIM: int = 1024   # KURE-v1(bge-m3 기반) 벡터 차원 수 → pgvector vector(1024)

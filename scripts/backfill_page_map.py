@@ -1,7 +1,7 @@
 """운영 chunks에 page_start/page_end metadata를 백필한다.
 
 원본 PDF를 Docling으로 재파싱(파싱만 — 온톨로지 빌드·재임베딩 없음)해 페이지 맵을 만들고,
-기존 청크 content를 정렬(src/parse/page_map.assign_pages)해 metadata JSONB에 페이지 범위를 병합(UPDATE)한다.
+기존 청크 content를 정렬(src/ingest/parse/page_map.assign_pages)해 metadata JSONB에 페이지 범위를 병합(UPDATE)한다.
 content·embedding은 불변이므로 검색 결과에 영향이 없다.
 
 사용 (호스트에서 실행, DB는 docker — POSTGRES_HOST 보정 필요):
@@ -31,7 +31,7 @@ sys.path.insert(0, str(_ROOT))
 from psycopg.types.json import Jsonb
 
 from src.db.connection import close_pool, get_pool, init_pool
-from src.parse.page_map import (
+from src.ingest.parse.page_map import (
     assign_pages,
     build_page_texts,
     marker_pages,

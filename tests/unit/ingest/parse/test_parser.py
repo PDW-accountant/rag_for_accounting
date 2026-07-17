@@ -1,7 +1,7 @@
 """
 [FUNC-001] 문서 파싱 단위 테스트 Stub
 
-대상 모듈: src/parse/parser.py
+대상 모듈: src/ingest/parse/parser.py
 검증 범위:
     - DoclingParser 인스턴스 생성 및 설정값 보존
     - parse() 메서드의 반환 타입(ParsedDocument) 규격 검증
