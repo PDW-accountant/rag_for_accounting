@@ -21,12 +21,12 @@ from pathlib import Path
 import pytest
 
 from src.db.connection import close_pool, init_pool
-from src.db.ontology.chunker import chunk_graph
-from src.db.ontology.models import OntologyGraph
+from src.ingest.ontology.chunker import chunk_graph
+from src.ingest.ontology.models import OntologyGraph
 from src.db.vector_store import delete_collection, index_documents, similarity_search
 from src.models.schemas import RetrievedChunk
 from src.retrieval.ontology_bridge import chunks_to_node_ids
-from src.utils.embedding import embed_texts
+from src.clients.embedding import embed_texts
 
 ONTOLOGY_DIR = Path(__file__).resolve().parents[2] / "data" / "ontology"
 CHAPTER = "gaap-ch1"                          # content 노드 3개로 적재·검색이 가볍다

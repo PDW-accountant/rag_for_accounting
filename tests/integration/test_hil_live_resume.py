@@ -19,7 +19,7 @@ import pytest
 
 from src.agent.workflow import run_workflow, resume_workflow
 from src.db.connection import init_pool, close_pool
-from src.utils.embedding import embed_texts
+from src.clients.embedding import embed_texts
 from src.utils.logger import get_logger
 from tests.utils.benchmark_metrics import (
     extract_chunk_paras,

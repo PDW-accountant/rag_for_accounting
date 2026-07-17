@@ -25,7 +25,7 @@ from src.models.schemas import RewrittenQuery
 from src.models.state import ErrorLog, GraphState
 from src.utils.config import OPENAI_MODEL
 from src.utils.exception import LLMAPIConnectionError
-from src.utils.llm_client import client
+from src.clients.llm import client
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)

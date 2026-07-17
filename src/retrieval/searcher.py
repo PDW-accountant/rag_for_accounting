@@ -12,7 +12,7 @@ from src.utils.config import (
     EMBEDDING_MODEL
 )
 from src.utils.exception import SearchTimeoutError, DatabaseQueryError, NoContextFoundError
-from src.utils.embedding import embed_texts
+from src.clients.embedding import embed_texts
 from src.db.connection import get_pool
 from src.utils.logger import get_logger
 

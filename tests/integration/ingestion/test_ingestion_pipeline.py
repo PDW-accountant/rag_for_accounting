@@ -6,7 +6,7 @@
 
 설계 원칙:
     - 외부 의존(파싱·임베딩·DB)만 모킹하고 실제 청킹·인덱싱 모듈을 그대로 관통한다.
-      청킹은 `src.db.ontology.chunker.chunk_graph`, 인덱싱은 `src.db.vector_store.index_documents`를 모킹 없이 호출하여, 시뮬레이션 헬퍼가 가렸던 실제 데이터 흐름의 정합성을 검증한다.
+      청킹은 `src.ingest.ontology.chunker.chunk_graph`, 인덱싱은 `src.db.vector_store.index_documents`를 모킹 없이 호출하여, 시뮬레이션 헬퍼가 가렸던 실제 데이터 흐름의 정합성을 검증한다.
     - 라이브 인프라(Docker/모델 다운로드) 없이 통과한다. 임베딩·DB·파서는 conftest 픽스처로 차단하고, 청킹 토큰 카운터는 모델 로드를 피하려고 가벼운 단어 수 함수를 주입한다.
     - 온톨로지 그래프는 LLM 빌드(build_graph) 대신 git에 추적되는 `data/ontology/*.json`을 역직렬화해 입력한다. 이는 main.py의 기본 ingest 경로(미리 빌드된 온톨로지 JSON 적재)와 동일하다.
 """
@@ -16,11 +16,11 @@ from unittest.mock import patch
 
 import pytest
 
-from src.db.ontology.chunker import chunk_graph
-from src.db.ontology.models import OntologyGraph
+from src.ingest.ontology.chunker import chunk_graph
+from src.ingest.ontology.models import OntologyGraph
 from src.db.vector_store import index_documents
 from src.models.schemas import ParsedDocument
-from src.parse.parser import DoclingParser
+from src.ingest.parse.parser import DoclingParser
 
 # 온톨로지 JSON 디렉터리, 청킹 입력 그래프의 출처
 ONTOLOGY_DIR = Path(__file__).resolve().parents[2].parent / "data" / "ontology"

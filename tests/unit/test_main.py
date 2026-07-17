@@ -31,7 +31,7 @@ class TestRunQueryPreload:
         with patch.object(main, "init_pool"), \
              patch.object(main, "close_pool"), \
              patch.object(main, "_print_response"), \
-             patch("src.utils.embedding.warmup_model", side_effect=lambda: order.append("warmup")), \
+             patch("src.clients.embedding.warmup_model", side_effect=lambda: order.append("warmup")), \
              patch("src.retrieval.reranker.warmup_reranker", side_effect=lambda: order.append("rerank")), \
              patch("src.agent.workflow.run_workflow",
                    side_effect=lambda q, standard_filter="ALL": order.append("workflow") or {"thread_id": "t"}):
@@ -48,7 +48,7 @@ class TestRunQueryPreload:
         with patch.object(main, "init_pool"), \
              patch.object(main, "close_pool"), \
              patch.object(main, "_print_response"), \
-             patch("src.utils.embedding.warmup_model",
+             patch("src.clients.embedding.warmup_model",
                    side_effect=LLMAPIConnectionError("HF 차단", node="search")), \
              patch("src.retrieval.reranker.warmup_reranker"), \
              patch("src.agent.workflow.run_workflow",

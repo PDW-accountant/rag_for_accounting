@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field, field_validator
 from src.agent.workflow import resume_workflow, run_workflow, thread_exists
 from src.api.schemas import WorkflowResponse, to_api_response
 from src.db.connection import close_pool, init_pool
-from src.parse.page_map import resolve_pdf_path
+from src.ingest.parse.page_map import resolve_pdf_path
 from src.utils.config import API_CORS_ORIGINS, PDF_DIR
 from src.utils.logger import get_logger
 
@@ -43,7 +43,7 @@ def _warmup_embedding() -> None:
     리랭커는 USE_RERANKER가 켜져 있을 때만 로드한다(warmup_reranker 내부 가드).
     어느 preload가 실패해도 서버를 막지 않는다 — 첫 질의가 기존 lazy 로드로 폴백한다.
     """
-    from src.utils.embedding import warmup_model
+    from src.clients.embedding import warmup_model
     from src.retrieval.reranker import warmup_reranker
 
     try:

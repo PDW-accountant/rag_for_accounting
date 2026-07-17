@@ -1,8 +1,8 @@
 """LLM 호출을 모킹하여 파이프라인 구조를 검증한다."""
 import pytest
 from unittest.mock import patch
-from src.db.ontology.builder import build_graph
-from src.db.ontology.edge_extractor import EdgeCandidate
+from src.ingest.ontology.builder import build_graph
+from src.ingest.ontology.edge_extractor import EdgeCandidate
 
 MD_PATH = "data/llm_parsed/회계_sample.md"
 
@@ -18,7 +18,7 @@ def _mock_extract(subsection_id, title, content, candidates):
 
 @pytest.mark.system
 def test_graph_has_all_node_types():
-    with patch("src.db.ontology.builder.extract_edges", side_effect=_mock_extract):
+    with patch("src.ingest.ontology.builder.extract_edges", side_effect=_mock_extract):
         graph = build_graph(MD_PATH, "gaap-ch6", "GAAP")
     types = {n.node_type for n in graph.nodes}
     assert "Standard" in types
@@ -28,17 +28,17 @@ def test_graph_has_all_node_types():
 
 @pytest.mark.system
 def test_graph_has_contains_edges():
-    with patch("src.db.ontology.builder.extract_edges", side_effect=_mock_extract):
+    with patch("src.ingest.ontology.builder.extract_edges", side_effect=_mock_extract):
         graph = build_graph(MD_PATH, "gaap-ch6", "GAAP")
     assert any(e.edge_type == "CONTAINS" for e in graph.edges)
 
 
 @pytest.mark.system
 def test_save_reload(tmp_path):
-    from src.db.ontology.builder import save_graph
-    from src.db.ontology.models import OntologyGraph
+    from src.ingest.ontology.builder import save_graph
+    from src.ingest.ontology.models import OntologyGraph
 
-    with patch("src.db.ontology.builder.extract_edges", side_effect=_mock_extract):
+    with patch("src.ingest.ontology.builder.extract_edges", side_effect=_mock_extract):
         graph = build_graph(MD_PATH, "gaap-ch6", "GAAP")
     out = tmp_path / "test.json"
     save_graph(graph, out)

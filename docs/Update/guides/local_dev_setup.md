@@ -2,7 +2,7 @@
 
 > 작성일 2026-06-13. 패키지 매니저는 **uv** 고정.
 > 루트의 `./install.sh`는 Docker Compose로 database + embedding + app을 모두 기동한다. app 컨테이너는 FastAPI API와 빌드된 React 프론트를 `:8000`에서 함께 서빙한다. 상태 점검은 `./check.sh`(무변경).
-> 임베딩(KURE-v1)은 docker `embedding` 서비스(TEI 기성 이미지)로 분리 서빙되며, `EMBEDDING_SERVER_URL` 설정 시 `src/client`를 통해 위임하고 미설정 시 프로세스 내 로드(호스트 MPS)로 돈다.
+> 임베딩(KURE-v1)은 docker `embedding` 서비스(TEI 기성 이미지)로 분리 서빙되며, `EMBEDDING_SERVER_URL` 설정 시 `src/clients`를 통해 위임하고 미설정 시 프로세스 내 로드(호스트 MPS)로 돈다.
 
 ## 1. 사전 요구
 - Python 3.12+ (`.python-version` 참조)
@@ -20,7 +20,7 @@ uv sync          # .venv 생성 + 의존성(dev 포함) 설치
 > - PDF를 직접 파싱해 적재하려면: `uv sync --extra ingest` (Docling 파싱 라이브러리 추가)
 > - `EMBEDDING_SERVER_URL`을 쓰지 않고 호스트에서 KURE-v1을 직접 돌리려면: `uv sync --extra local-embedding`
 >
-> 테스트를 전부 돌리려면 `--extra ingest`가 먼저 필요하다: `uv sync --extra ingest && uv run pytest`. 이 extra 없이 기본 설치만 하고 테스트를 돌리면, `tests/unit/parse`가 Docling을 쓰는 `src/parse`를 가져오려다 실패해 7건이 `ModuleNotFoundError: docling_core`로 떨어진다.
+> 테스트를 전부 돌리려면 `--extra ingest`가 먼저 필요하다: `uv sync --extra ingest && uv run pytest`. 이 extra 없이 기본 설치만 하고 테스트를 돌리면, `tests/unit/ingest/parse`가 Docling을 쓰는 `src/ingest/parse`를 가져오려다 실패해 7건이 `ModuleNotFoundError: docling_core`로 떨어진다.
 
 ## 3. 환경 변수
 ```bash

@@ -20,7 +20,7 @@ from psycopg.types.json import Jsonb
 from src.db.connection import get_pool
 from src.models.schemas import RetrievedChunk, IndexingResult, SkippedChunk
 from src.utils.config import BATCH_SIZE, EMBEDDING_DIM, EMBEDDING_MAX_TOKENS, SEARCH_TIMEOUT_SECONDS
-from src.utils.embedding import embed_texts, count_tokens
+from src.clients.embedding import embed_texts, count_tokens
 from src.utils.exception import (
     AccountingRAGError,
     DatabaseQueryError,

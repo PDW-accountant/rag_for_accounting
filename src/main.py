@@ -40,7 +40,7 @@ logger = get_logger(__name__)
 
 def _load_graph_from_json(path: Path):
     """저장된 온톨로지 그래프 JSON을 OntologyGraph로 역직렬화한다."""
-    from src.db.ontology.models import OntologyGraph
+    from src.ingest.ontology.models import OntologyGraph
 
     return OntologyGraph.model_validate_json(path.read_text(encoding="utf-8"))
 
@@ -51,14 +51,14 @@ def _build_graph_from_source(args):
     PDF는 DoclingParser로 마크다운을 추출한 뒤 build_graph에 넘긴다.
     LLM 엣지 추출이 포함되므로 OPENAI_API_KEY와 실행 시간이 필요하다.
     """
-    from src.db.ontology.builder import build_graph
+    from src.ingest.ontology.builder import build_graph
 
     if args.md:
         md_path = Path(args.md)
     else:
         # PDF → 마크다운(FUNC-001). build_graph는 마크다운 파일 경로를 입력으로 받으므로
         # 파싱 결과 텍스트를 임시 .md로 저장해 전달한다.
-        from src.parse.parser import DoclingParser
+        from src.ingest.parse.parser import DoclingParser
 
         pdf_path = Path(args.pdf)
         logger.info(f"PDF 파싱 시작: {pdf_path}")
@@ -79,7 +79,7 @@ def _index_graph(
 
     단, 청킹 결과가 비어 있으면 적재를 건너뛰고 status="failed"인 dict를 직접 만들어 반환한다.
     """
-    from src.db.ontology.chunker import chunk_graph
+    from src.ingest.ontology.chunker import chunk_graph
     from src.db.vector_store import index_documents
 
     chunks = chunk_graph(
@@ -205,7 +205,7 @@ def _preload_embedding() -> None:
     리랭커는 USE_RERANKER가 켜져 있을 때만 로드한다.
     실패해도(예: HF 접속 불가) 막지 않는다. 첫 질의가 기존 lazy 로드로 폴백한다.
     """
-    from src.utils.embedding import warmup_model
+    from src.clients.embedding import warmup_model
     from src.retrieval.reranker import warmup_reranker
 
     try:

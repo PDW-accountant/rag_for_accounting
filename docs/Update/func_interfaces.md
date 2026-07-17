@@ -13,20 +13,22 @@ FUNC들이 주고받는 데이터 타입은 `src/models/schemas.py`(공용 스�
 
 ---
 
-## FUNC-001 — 문서 파싱 (`src/parse/`)
+## FUNC-001 — 문서 파싱 (`src/ingest/parse/`)
 PDF 한 개를 받아 Docling으로 텍스트·표를 뽑고, 페이지 안의 읽는 순서를 사람이 읽는 순서(위→아래, 왼→오른)로 재정렬한 뒤
 마크다운 문서(`ParsedDocument`)로 돌려준다. `DoclingParser().parse(path)`로 진입한다.
 
-## FUNC-002 — 청킹/온톨로지 (`src/db/ontology/`)
+## FUNC-002 — 청킹/온톨로지 (`src/ingest/ontology/`)
 마크다운 문서를 장·절·소절(Standard/Section/Subsection) 구조로 나누고, 조항 간 참조(REFERENCES 등) 관계를
 정규식과 LLM으로 함께 채운 뒤, 그 구조를 검색 가능한 청크로 잘라낸다.
 `build_graph(md_path, standard_id, standard_type)`로 구조를 만들고 `chunk_graph(graph, source_path)`로 청크를 뽑는다.
 구조를 못 알아내면 OT-103을 낸다.
 
-## FUNC-003 — 인덱싱 (`src/db/vector_store.py`, `src/utils/embedding.py`)
-청크 목록을 KURE-v1으로 임베딩해 pgvector에 저장한다. 이미 있는 chunk_id는 갱신하고 없으면 새로 넣는다(멱등).
-토큰 한도를 넘는 청크는 IX-201로 건너뛰고, DB 오류는 SE-102로 기록한다.
-`index_documents(chunks, collection)`으로 진입한다.
+## FUNC-003 — 인덱싱 (`src/db/vector_store.py`, `src/clients/embedding.py`)
+- **입력**: `list[RetrievedChunk]`, collection(기본 `chunks`)
+- **출력**: `IndexingResult`
+- **진입**: `index_documents(chunks, collection)`. 임베딩 KURE-v1(1024d) → pgvector HNSW upsert(멱등 chunk_id)
+- **에러**: IX-201(토큰 한도 초과 → 부분 커밋), SE-102(DB)
+>>>>>>> 3f7b0fb (refactor: src 구조 재배치 — ingest 파이프라인 분리·클라이언트 통합·mcp 개명)
 
 ## FUNC-004 — 질의 재구성 (`src/agent/nodes/rewrite.py`)
 사용자 질의가 회계 질문인지 먼저 판별하고, 아니면 조기 종료한다.

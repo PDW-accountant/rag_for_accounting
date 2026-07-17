@@ -105,11 +105,11 @@ cd frontend && npm install && npm run dev
 
 #### MCP 서버 (FastMCP)
 
-RAG 질의를 MCP 도구로 노출합니다(`src/mcp/server.py`, stdio). 도구는 `query_standards`(질의)와 `resume_query`(HIL 재개) 2종이며 응답 스키마는 API(`/query`·`/resume`)와 동일합니다.
+RAG 질의를 MCP 도구로 노출합니다(`src/mcp_server/server.py`, stdio). 도구는 `query_standards`(질의)와 `resume_query`(HIL 재개) 2종이며 응답 스키마는 API(`/query`·`/resume`)와 동일합니다.
 
 ```bash
 # MCP 클라이언트 등록 (stdio, 프로젝트 루트에서)
-claude mcp add accounting-rag -- uv run python -m src.mcp.server
+claude mcp add accounting-rag -- uv run python -m src.mcp_server.server
 ```
 
 > DB·임베딩 서버가 떠 있어야 합니다(`docker compose up -d database embedding`). 임베딩을 TEI로 위임하려면 `EMBEDDING_SERVER_URL=http://localhost:8080`을 설정합니다.
