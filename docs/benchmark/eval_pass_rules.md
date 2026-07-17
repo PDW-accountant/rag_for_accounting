@@ -2,7 +2,7 @@
 
 > **한 줄 요약(BLUF):** NFR-002 벤치마크의 '통과'를 **검색(retrieval)·내용(content) 두 축으로 분리**해 각각 집계한다. **1순위는 정확한 조항 검색**이고 LLM 답변은 참고용이다. 검색 축은 `tests/utils/benchmark_metrics.py`에 구현돼 있고, 내용 축은 미구현이다.
 >
-> 용어: `retrieval_pass`(검색 통과)·`content_pass`(내용 통과)는 아래 §1 표에서 정의한다. 공통 용어(조항·RRF·Hit@K)는 [용어 사전](../README.md#용어-단일화-사전) 참조.
+> 용어: `retrieval_pass`(검색 통과)·`content_pass`(내용 통과)는 아래 §1 표에서 정의한다. 공통 용어(조항·RRF·Hit@K)는 [용어 사전](../../README.md#용어-단일화-사전) 참조.
 
 ---
 
@@ -75,3 +75,21 @@
 
 - `retrieval_pass`는 `exact` 전용이다. 현 코퍼스의 gold는 전부 2단(`2.65`,`18.4` 등)이라 무해하나, 향후 3단 gold(`2.6.5`)와 2단 청크(`2.6`)가 공존하면 검색이 옳아도 `retrieval_pass=False`가 될 수 있다 → 그때 통과 규칙(prefix 포함 여부) 재검토.
 - 조항번호 정규화 규칙·단위테스트는 `tests/unit/utils/test_clause_normalization.py` 참조.
+
+## 6. 2026-07-11 회의 반영 — 성능 지표 기록 기준
+
+회의에서 요구한 성능 문서화 대상은 검색 성능, 답변 품질, 답변 속도, 검색 속도다. 다만 테스트 데이터셋에 정답 오류가 발견됐으므로, 검수 전 숫자는 정본 문서에 박제하지 않는다.
+
+검수 완료 후 측정 문서는 `docs/measurements/`에 새 파일로 남기고 다음 정보를 반드시 포함한다.
+
+| 항목 | 기록 내용 |
+|---|---|
+| 데이터셋 | 파일명, 케이스 수, gold/core 라벨링 기준 |
+| 실행 환경 | CPU/GPU, RAM, Docker/호스트, 임베딩 서버 여부, 리랭커 여부 |
+| 설정값 | `TOP_K_RETRIEVAL`, `RRF_K`, `USE_RERANKER`, `RERANK_THRESHOLD`, `OPENAI_MODEL` |
+| 검색 지표 | `retrieval_pass`, exact Hit@1/Hit@K, MRR |
+| 답변 지표 | `content_pass` 구현 후 pass/partial/fail |
+| 속도 지표 | 검색 latency, 전체 응답 latency, timeout/recursion fallback 건수 |
+| 해석 | 수치가 좋아지거나 나빠진 원인과 다음 조치 |
+
+README에는 최신 대표 결과만 요약하고, 재현 가능한 상세 수치는 measurements 문서로 링크한다.

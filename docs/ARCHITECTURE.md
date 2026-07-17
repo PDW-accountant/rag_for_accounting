@@ -137,10 +137,10 @@ HIL 체크포인터는 현재 프로세스 로컬 `MemorySaver`다. 따라서 Fa
 
 | 축 | 현행 상태 | 정본 문서/코드 |
 |---|---|---|
-| 검색 통과 | 핵심 조항 Top-5 기준 구현 | `docs/update/benchmark/eval_pass_rules.md`, `tests/utils/benchmark_metrics.py` |
+| 검색 통과 | 핵심 조항 Top-5 기준 구현 | `docs/benchmark/eval_pass_rules.md`, `tests/utils/benchmark_metrics.py` |
 | 내용 통과 | 별도 judge 미구현 | 같은 문서의 `content_pass` 섹션 |
 | 속도 | API/검색/답변 속도 정식 리포트 미작성 | 향후 측정 산출물은 `docs/measurements/`에 둔다. |
-| 리랭커 실험 | 2026-07-05 측정 문서 존재 | `docs/measurements/rerank_tokenization_replay_20260705.md` |
+| 리랭커 실험 | 2026-07-05 측정 문서가 있었으나 현재 문서 트리에는 포함되어 있지 않다 | 측정 산출물은 `docs/measurements/`에 둔다. |
 
 검증되지 않은 숫자를 README나 아키텍처 문서에 박제하지 않는다. 벤치마크 데이터셋이 교정되면 측정 명령, 환경, 데이터셋 버전, 결과 해석을 함께 남긴다.
 
@@ -150,11 +150,11 @@ HIL 체크포인터는 현재 프로세스 로컬 `MemorySaver`다. 따라서 Fa
 |---|---|
 | 아키텍처 업데이트 | 이 문서가 현행 SSoT다. |
 | 로직 정리 | 검색, 청킹, HIL/CRAG, API 계약을 코드 기준으로 정리했다. |
-| 설치 가이드 | `docs/update/guides/local_dev_setup.md`, `docs/update/guides/docker_setup_guide.md`가 담당한다. |
+| 설치 가이드 | `docs/guides/local_dev_setup.md`, `docs/guides/docker_setup_guide.md`가 담당한다. |
 | README 업데이트 | 루트 `README.md`와 `docs/README.md`에서 현행 경로를 연결한다. |
 | 성능 지표 | 검수된 데이터셋 기반 수치만 별도 measurements 문서로 남긴다. |
-| 온톨로지 규칙 | `docs/update/guides/ontology_guide.md`가 담당한다. |
-| 하이브리드/BM25 | `docs/update/guides/bm25_guide.md`가 현행 sparse 구현과 한계를 분리해 설명한다. |
+| 온톨로지 규칙 | `docs/guides/ontology_guide.md`가 담당한다. |
+| 하이브리드/BM25 | `docs/guides/retrieval_guide.md`가 현행 sparse 구현과 한계를 분리해 설명한다. |
 
 ## 변경 이력
 

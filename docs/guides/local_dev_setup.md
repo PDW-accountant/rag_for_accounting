@@ -1,14 +1,24 @@
-# 로컬 개발 셋업
+# 로컬 개발 셋업 가이드
 
-> 작성일 2026-06-13. 패키지 매니저는 **uv** 고정.
-> 루트의 `./install.sh`는 Docker Compose로 database + embedding + app을 모두 기동한다. app 컨테이너는 FastAPI API와 빌드된 React 프론트를 `:8000`에서 함께 서빙한다. 상태 점검은 `./check.sh`(무변경).
-> 임베딩(KURE-v1)은 docker `embedding` 서비스(TEI 기성 이미지)로 분리 서빙되며, `EMBEDDING_SERVER_URL` 설정 시 `src/clients`를 통해 위임하고 미설정 시 프로세스 내 로드(호스트 MPS)로 돈다.
+> 본 문서는 데이터셋 구성을 위해 구성된 로컬 개발에 대한 셋업 가이드를 작성됨.
 
 ## 1. 사전 요구
 - Python 3.12+ (`.python-version` 참조)
 - uv (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- Docker / Docker Compose (pgvector PostgreSQL용)
+- Docker / Docker Compose (PostgreSQL·임베딩 서버·통합 앱용)
 - OpenAI API 키 (rewrite/evaluate/generate 노드용)
+
+### 권장 하드웨어
+
+| 용도 | 최소/권장 |
+|---|---|
+| 기본 질의·API 개발 | CPU 4코어 이상, RAM 16GB 이상 |
+| Docker 통합 실행 | Docker Desktop 메모리 8GB 이상 할당 권장 |
+| 대량 적재 | RAM 24GB 이상 권장. 임베딩 배치와 Docling 파싱이 메모리를 많이 쓴다. |
+| 로컬 임베딩 직접 실행 | Apple Silicon MPS 또는 CUDA GPU가 있으면 유리하다. 없으면 TEI CPU 컨테이너를 사용한다. |
+| 리랭커 사용 | `BAAI/bge-reranker-v2-m3` 모델 캐시와 메모리 여유가 필요하다. 기본은 OFF다. |
+
+처음 실행 시 KURE-v1 모델 다운로드 때문에 임베딩 서버 준비가 몇 분 걸릴 수 있다. `./check.sh`는 이 상태를 감안해 헬스체크를 수행한다.
 
 ## 2. 의존성 설치
 ```bash
@@ -42,6 +52,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 > DB 이미지(`db.Dockerfile`)는 pgvector 확장이 포함된 PostgreSQL을 빌드한다. `embedding`은 TEI로 KURE-v1을 서빙하고, `app`은 `http://localhost:8000`에서 API와 React를 함께 제공한다.
+>
+> 원문 PDF 조회를 Docker 앱에서 쓰려면 컨테이너의 `PDF_DIR`과 volume mount가 같은 위치를 봐야 한다. 현행 코드 기본값은 `data/raw_data`다. Compose에서 다른 경로를 마운트하면 `.env` 또는 compose 환경변수에 `PDF_DIR`을 맞춘다.
 
 ## 5. 실행 (진입점 `src/main.py`)
 ### 적재(ingest)
@@ -53,9 +65,9 @@ uv run python -m src.main ingest
 uv run python -m src.main ingest --reset
 
 # 단일 PDF: 파싱→온톨로지→청킹→적재 전체 경로
-uv run python -m src.main ingest --pdf data/raw/제6장.pdf --standard-id gaap-ch6 --standard-type GAAP
+uv run python -m src.main ingest --pdf data/raw_data/제6장.pdf --standard-id gaap-ch6 --standard-type GAAP
 ```
-> `docker-compose.yml`의 `./data/raw:/app/data/raw:ro` 마운트는 API PDF 서빙용이다. 문서 적재(`ingest`)는 `uv sync --extra ingest`를 설치한 쓰기 가능한 호스트 환경에서 실행하는 것을 전제로 한다.
+> `docker-compose.yml`의 PDF 마운트는 API PDF 서빙용이다. 현행 `PDF_DIR` 기본값은 `data/raw_data`이며, 문서 적재(`ingest`)는 `uv sync --extra ingest`를 설치한 쓰기 가능한 호스트 환경에서 실행하는 것을 전제로 한다.
 ### 질의(query)
 ```bash
 uv run python -m src.main query "금융자산의 최초 인식 시점은?"
@@ -95,6 +107,7 @@ npm run dev
 uv run pytest tests/unit -q          # 단위 전체 (현재 276 passed)
 uv run pytest -m system -q           # 시스템 (현재 34 passed)
 uv run python tests/run_tests.py     # 통합 러너
+./check.sh                           # Docker 통합 앱/DB/임베딩 상태 점검
 ```
 > ⚠️ benchmark/통합 테스트는 `init_pool()` + 적재된 DB가 있어야 통과한다. DB 없이 `tests/integration` 직접 실행 시 검색 실패로 fail한다.
 
@@ -104,4 +117,4 @@ docker compose exec app uv run python -m src.main query "..."
 ```
 
 ---
-관련 문서: [architecture_overview.md](../architecture/architecture_overview.md) · [func_interfaces.md](../architecture/func_interfaces.md) · `docs/guides/docker_setup_guide.md`
+관련 문서: [ARCHITECTURE.md](../ARCHITECTURE.md) · [func_interfaces.md](../func_interfaces.md) · [docker_setup_guide.md](docker_setup_guide.md)
