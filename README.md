@@ -1,20 +1,32 @@
 # 회계 기준서 RAG(Retrieval-Augmented Generation) 시스템
 
-> 본 회계 기준서 RAG 시스템 프로젝트는 K-GAAP(Korean Generally Accepted Accounting Principles)**한국 일반기업회계기준 중심**으로 하여 회계 기준서 원문을 검색하고, 관련 조항과 인용을 함께 제시하는 질의응답 서비스입니다.
->  사용자는 자연어로 회계처리, 인식 시점, 측정, 공시 등을 질문할 수 있고, 시스템은 근거 조항을 검색한 뒤 LLM(Large Language Model)이 근거 범위 안에서 답변을 생성합니다.
+> 본 회계 기준서 RAG 시스템 프로젝트는 **K-GAAP(한국 일반기업회계기준) 중심**으로 하여 회계 기준서 원문을 검색하고, 관련 조항과 인용을 함께 제시하는 질의응답 서비스입니다.
 
-이 프로젝트는 비상장 중소기업 감사 업무에서 K-GAAP 조항을 빠르게 확인해야 하는 상황을 주요 사용 사례로 둡니다. K-IFRS(Korean International Financial Reporting Standards), 즉 한국채택국제회계기준 질의도 구조상 지원할 수 있지만, 실제 검색 가능 범위는 사용자가 적재한 원문 데이터에 따라 달라집니다.
 
-> **목적**: 본 프로젝트는 비영리·공익 목적으로 개발되었으며, 상업적 용도로 사용할 수 없습니다.
+사용자는 자연어로 회계처리, 인식 시점, 측정, 공시 등을 질문할 수 있고, 시스템은 근거 조항을 검색한 뒤 LLM(Large Language Model)이 근거 범위 안에서 답변을 생성합니다.
+
+현재 프로젝트 버전에서는 K-GAAP 조항에 근거한 회계처리만을 주요 사용 사례로 두고, K-IFRS(한국채택국제회계기준)기반 회계처리는 차후 업데이트 예정입니다.
+
+> 본 프로젝트는 비영리·공익 목적으로 개발되었으며, 상업적 용도로 사용할 수 없습니다.  
+> 또한, 데이터셋을 제공하지 않아 관련해서 가이드라인 문서를 참고해서 문서 파싱 및 온톨로지는 사용자가 직접 구성해야합니다.
 
 ## 🚀 주요 기능
 
-- **워크플로**: LangGraph 기반으로 질문 재작성(rewrite) → 검색(search) → 리랭킹(rerank, 기본 비활성) → 품질 평가(evaluate) → 답변 생성(generate)의 메인 경로 5단계 파이프라인
-- **하이브리드 검색**: Dense Search(Dense Vector Search)와 Sparse Search(Sparse Keyword Search)를 함께 실행하고, RRF(Reciprocal Rank Fusion)로 결과를 병합합니다.
+- **워크플로**: LangGraph 기반으로 `질문 재작성(rewrite) → 검색(search) → 리랭킹(rerank, 기본 비활성) → 품질 평가(evaluate) → 답변 생성(generate)`의 메인 경로 5단계 파이프라인
+- **하이브리드 검색**: Dense Search와 Sparse Search를 함께 실행하고, RRF(Reciprocal Rank Fusion)로 결과를 병합합니다.
 - **근거 품질 평가**: CRAG(Corrective Retrieval-Augmented Generation) 방식의 평가 단계를 통해 근거가 부족하면 제한된 횟수 안에서 재검색을 시도합니다.
 - **선택적 사용자 확인**: HIL(Human-in-the-Loop) 분기를 통해 질의를 쪼개거나 상위 개념으로 바꾸는 재작성 전략이 필요할 때 사용자 확인을 받을 수 있습니다.
-- **일관된 응답 계약**: CLI(Command Line Interface), API(Application Programming Interface), MCP(Model Context Protocol), Codex Skill이 같은 워크플로와 답변·조항·인용 구조를 사용합니다.
+- **일관된 응답 계약**: CLI, API, MCP(Model Context Protocol), Codex Skill이 같은 워크플로와 답변·조항·인용 구조를 사용합니다.
 - **웹 화면 제공**: FastAPI와 React 정적 파일을 하나의 앱 컨테이너에서 제공하며, 원문 PDF(Portable Document Format) 조회 엔드포인트도 함께 제공합니다.
+
+## 시스템 아키텍처
+<!-- Mermaid 기반으로 정리 -->
+
+## 성능 지표
+<!-- 실제 답변 비교 및 RAGAS에 대한 평가 지표 제공. -->
+
+## 활용법
+<!-- 사용자 UI 및 기본 질문에 대한 화면 필요-->
 
 ## 🛠️ 빠른 시작
 
@@ -23,7 +35,6 @@
 ```bash
 cp .env.example .env   # 최초 1회, OPENAI_API_KEY 등 입력
 ./install.sh           # Docker(database·embedding·app) 빌드 및 기동
-./check.sh             # 시스템 점검
 ```
 
 브라우저 진입점은 `http://localhost:8000`이고, API 문서는 `http://localhost:8000/docs`입니다.
@@ -53,8 +64,8 @@ docker compose up -d database
 ## ▶️ 실행
 
 ### 문서 적재
-
-진입점 `src/main.py`의 `ingest` 서브커맨드는 온톨로지 JSON(JavaScript Object Notation) 또는 단일 PDF/Markdown 문서를 청킹하고 임베딩한 뒤 pgvector의 `chunks` 테이블에 저장합니다.
+<!-- 문서 다운로드 관련 내용 정리 해서 추가 -->
+진입점 `src/main.py`의 `ingest` 서브커맨드는 온톨로지 JSON 또는 단일 PDF/Markdown 문서를 청킹하고 임베딩한 뒤 pgvector의 `chunks` 테이블에 저장합니다.
 
 ```bash
 # data/ontology 전체 장을 적재
@@ -67,7 +78,7 @@ uv run python -m src.main ingest --reset
 uv run python -m src.main ingest --pdf data/raw_data/제6장.pdf --standard-id gaap-ch6 --standard-type GAAP
 ```
 
-원본 회계기준 PDF는 저작권 문제로 저장소에 포함하지 않습니다. `data/raw_data/README.md` 안내에 따라 사용자가 직접 내려받아 배치하는 BYO(Bring Your Own) 방식을 따릅니다.
+원본 회계기준 PDF는 저작권 문제로 저장소에 포함하지 않습니다. `data/raw_data/README.md` BYO(Bring Your Own) 방식을 따릅니다.
 
 ### 질의
 
@@ -106,7 +117,7 @@ npm run dev
 
 ## 🔌 MCP 서버
 
-FastMCP 기반 MCP 서버는 RAG 질의를 도구로 노출합니다. 도구는 `query_standards`와 `resume_query` 두 가지이며, 응답 스키마는 HTTP(Hypertext Transfer Protocol) API의 `/query`, `/resume`과 동일합니다.
+FastMCP 기반 MCP 서버는 RAG 질의를 도구로 노출합니다. 도구는 `query_standards`와 `resume_query` 두 가지이며, 응답 스키마는 HTTP API의 `/query`, `/resume`과 동일합니다.
 
 ```bash
 claude mcp add accounting-rag -- uv run python -m src.mcp_server.server
@@ -131,35 +142,16 @@ codex plugin add k-accounting@k-accounting-marketplace
 
 플러그인 설치 후에는 Codex 세션을 이 저장소 루트에서 열어야 합니다. MCP 서버는 플러그인에 번들되어 있으므로 Claude처럼 별도 `mcp add`를 실행할 필요는 없습니다. 단, 데이터베이스와 임베딩 서버는 별도로 실행되어 있어야 합니다.
 
-```mermaid
-flowchart TD
-    Q([사용자 질의]) --> SKILL{Codex가 질의를 k-accounting Skill과 대조}
-    SKILL -->|회계 기준 질의 아님| NOOP[스킬 미적용]
-    SKILL -->|회계 기준 질의| MCP[query_standards 호출]
-    MCP --> REWRITE[rewrite: 질의 재작성]
-    REWRITE -->|비회계 질의로 재분류| EXIT[종료 안내]
-    REWRITE --> HR{human_review}
-    HR -->|승인 불필요 또는 이미 승인| SEARCH[search → rerank 선택 적용]
-    HR -->|decompose 또는 stepback 승인 필요| HIL[HIL 확인]
-    HIL -->|재작성 요청| REWRITE
-    HIL -->|승인| SEARCH
-    SEARCH --> EVAL{evaluate: CRAG 품질 게이트}
-    EVAL -->|근거 부족, 재작성 한도 남음| REWRITE
-    EVAL -->|근거 충분 또는 재시도 소진| GEN[generate: 답변 생성]
-    GEN --> DONE[답변 + 인용 + 신뢰도 반환]
-```
 
 ## 🔍 LangSmith 트레이싱
 
-LangSmith 트레이싱은 개발자 디버깅용이며 기본값은 비활성입니다. 파이프라인 노드 흐름, 입출력, 지연 시간을 추적하려면 `.env`에 다음 값을 설정합니다.
+LangSmith 트레이싱을 통해 파이프라인 노드 흐름, 입출력, 지연 시간을 추적가능하며, `.env`에 다음 값을 넣어서 활성화할 수 있습니다.
 
 ```bash
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=ls-your-key-here
 LANGCHAIN_PROJECT=your_project_name
 ```
-
-활성화하면 LangGraph 노드와 CRAG 루프, HIL interrupt 분기가 트레이스로 기록됩니다. 질의, LLM 답변, 검색 컨텍스트가 외부 SaaS인 LangSmith로 전송되므로 운영 데이터 사용 시 주의해야 합니다.
 
 ## 📂 프로젝트 구조
 
@@ -172,15 +164,13 @@ src/
   ingest/         PDF 파싱, 온톨로지 빌드, 청킹
   mcp_server/     MCP 도구 서버
   retrieval/      검색, RRF 병합, 선택적 리랭킹
-  skills/         Codex Skill 정의
+  skills/         Codex/Claude Skill 정의
 frontend/         React UI(User Interface)
 docs/             아키텍처, 개발 가이드, 검색/온톨로지 문서
 tests/            단위 테스트와 통합 테스트
 scripts/          벤치마크와 재현 스크립트
 data/             사용자 제공 원문과 테스트 데이터
 ```
-
-전체 문서 인덱스는 [docs/README.md](docs/README.md)에서 시작합니다. 현행 서비스 아키텍처의 SSoT(Single Source of Truth)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)입니다.
 
 ## ✅ 테스트와 검증
 
@@ -197,7 +187,7 @@ uv run pytest tests/integration
 uv run python scripts/benchmark_baseline.py
 ```
 
-평가 기준은 [docs/benchmark/eval_pass_rules.md](docs/benchmark/eval_pass_rules.md)를 따릅니다. 검증되지 않은 성능 수치는 README에 고정하지 않고, 데이터셋과 측정 환경이 확정된 뒤 별도 측정 문서로 관리합니다.
+평가 기준은 [docs/benchmark/eval_pass_rules.md](docs/benchmark/eval_pass_rules.md)를 따릅니다.
 
 ## 📚 데이터 출처
 
