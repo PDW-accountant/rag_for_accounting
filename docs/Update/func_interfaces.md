@@ -1,10 +1,8 @@
 # FUNC 인터페이스 명세 (FUNC-001~009)
 
-> **한 줄 요약(BLUF):** v1.0 각 기능(FUNC-001~009)의 입출력 계약과 에러코드. 타입은 `src/models/schemas.py`·`src/models/state.py`가 정본이다.
+> **한 줄 요약(BLUF):** v1.0 각 기능 입출력 계약과 에러코드. 타입은 `src/models/schemas.py`·`src/models/state.py`가 정본이다.
 
-> **약어** — HNSW(근사최근접 벡터 인덱스) · tsvector(PostgreSQL 전문검색 토큰) · upsert(있으면 갱신·없으면 삽입). 공통 용어(조항·RRF·HIL·CRAG)는 [용어 사전](../README.md#용어-단일화-사전), 비개발 독자는 [아키텍처 개요](architecture_overview.md)부터.
-
-*작성일 2026-06-13 · 코드 실태 기준.*
+> **약어** — HNSW(근사최근접 벡터 인덱스) · tsvector(PostgreSQL 전문검색 토큰) · upsert(있으면 갱신·없으면 삽입). 공통 용어(조항·RRF·HIL·CRAG)는 [용어 사전](../README.md#용어-단일화-사전), 비개발 독자는 [아키텍처 개요](ARCHITECTURE.md)부터.
 
 ## 데이터 스키마
 
@@ -28,7 +26,6 @@ PDF 한 개를 받아 Docling으로 텍스트·표를 뽑고, 페이지 안의 �
 - **출력**: `IndexingResult`
 - **진입**: `index_documents(chunks, collection)`. 임베딩 KURE-v1(1024d) → pgvector HNSW upsert(멱등 chunk_id)
 - **에러**: IX-201(토큰 한도 초과 → 부분 커밋), SE-102(DB)
->>>>>>> 3f7b0fb (refactor: src 구조 재배치 — ingest 파이프라인 분리·클라이언트 통합·mcp 개명)
 
 ## FUNC-004 — 질의 재구성 (`src/agent/nodes/rewrite.py`)
 사용자 질의가 회계 질문인지 먼저 판별하고, 아니면 조기 종료한다.
