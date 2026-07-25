@@ -1,19 +1,24 @@
 # 프로젝트 Docker 환경 구성 및 검증 가이드
 
-> **한 줄 요약(BLUF):** 개발 환경 일관성을 위한 Docker(`pgvector` PostgreSQL) 구성·실행·검증 가이드. 인프라 준비 상태는 통합 테스트가 자동 점검하므로, 빌드(`docker compose up --build -d`) 후 `uv run python tests/run_tests.py --phase1-only`만 실행하면 된다.
-
-본 문서는 개발 환경의 일관성을 맞추기 위해 도입된 Docker 및 컨테이너 환경의 사용 가이드입니다. 
-가이드를 따라 Docker 환경을 빌드하고, 환경이 정상적으로 갖춰져 있는지 테스트해 볼 수 있습니다.
+> **한 줄 요약(BLUF):** Docker Compose는 `database`(pgvector), `embedding`(KURE-v1 TEI), `app`(FastAPI + React)을 한 번에 띄운다. 일반 사용자는 `./install.sh`로 설치·기동하고 `./check.sh`로 상태를 확인하면 된다.
 
 ## 1. 개요 및 목적
 
-- **환경 격리**: 개발자별 호스트 환경(Mac, Windows 등) 차이에 따른 `uv` 종속성 충돌 및 시스템 호환성 문제를 방지합니다.
-- **벡터 검색 데이터베이스**: 벡터 검색(`pgvector`)을 지원하는 커스텀 PostgreSQL 컨테이너를 구동합니다.
-- **자동화된 테스트**: 구축된 인프라가 정상적으로 준비되었는지 확인할 수 있는 테스트 스크립트를 제공합니다.
+- **환경 격리**: 개발자별 호스트 환경 차이에 따른 Python·모델 의존성 충돌을 줄인다.
+- **벡터 검색 데이터베이스**: pgvector 확장이 포함된 PostgreSQL 컨테이너를 구동한다.
+- **임베딩 분리**: KURE-v1을 TEI 컨테이너로 서빙해 앱 컨테이너의 모델 로드를 줄인다.
+- **통합 앱**: FastAPI API와 빌드된 React 프론트를 `http://localhost:8000`에서 함께 제공한다.
 
 ## 2. Docker 환경 실행 지침
 
-아래 명령어들을 순서대로 터미널에 입력하여 가상 환경을 띄우고 상태를 점검합니다. 
+일반 사용자는 아래 두 명령으로 충분하다.
+
+```bash
+./install.sh
+./check.sh
+```
+
+수동으로 실행하려면 아래 단계를 따른다.
 
 ### 1단계: 컨테이너 빌드 및 백그라운드 실행
 기존과 변경된 `pyproject.toml`과 `Dockerfile` 사항을 반영해야 하므로 반드시 갱신 빌드가 필요합니다.
@@ -21,13 +26,24 @@
 docker compose up --build -d
 ```
 
+서비스 구성은 다음과 같다.
+
+| 서비스 | 컨테이너 | 역할 | 포트 |
+|---|---|---|---|
+| `database` | `accounting_db` | PostgreSQL + pgvector | `5432` |
+| `embedding` | `accounting_embedding` | KURE-v1 TEI 임베딩 서버 | `8080` |
+| `app` | `accounting_app` | FastAPI API + React 정적 파일 | `8000` |
+
 ### 2단계: 자동화된 인프라 환경 검증 테스트
 인프라 검증은 `tests/utils/infra_check.py`의 `check_docker_infrastructure()`에 위임되어 있습니다. `tests/integration/conftest.py`의 세션 픽스처가 **통합 테스트 진입 전 자동으로 실행**하여 Docker 데몬·컨테이너 구동·`pgvector` 확장 로드를 점검하고, 문제가 있으면 통합 테스트를 건너뜁니다.
 
-따라서 인프라 준비 상태는 별도 명령 없이 통합 테스트를 실행하면 함께 검증됩니다:
+따라서 인프라 준비 상태는 `./check.sh` 또는 통합 테스트로 검증한다:
 ```bash
+./check.sh
 uv run python tests/run_tests.py --phase1-only
 ```
+
+첫 실행에서는 `embedding` 서비스가 KURE-v1 모델을 다운로드한다. 이 단계는 몇 분 걸릴 수 있으며, 다운로드 후에는 `tei_cache` 볼륨을 재사용한다.
 
 ### 3단계: 컨테이너 쉘 접근 및 개발자 수동 활용 가이드
 자동화된 테스트 이외에 직접 컨테이너에 접근하여 데이터베이스를 조회하거나 단위 작업을 수행해야 하는 경우,
@@ -42,7 +58,7 @@ docker exec -it accounting_app bash
 # 1. 컨테이너에 최종적으로 설치된 패키지 확인
 uv pip list
 # 2. 내부에서 별도로 파이썬 단위 테스트 직접 통과 여부 수행
-pytest src/db/ontology/models.py
+pytest src/ingest/ontology/models.py
 ```
 
 #### DB 컨테이너 (`accounting_db`) 조회
@@ -58,17 +74,30 @@ docker exec -it accounting_db psql -U accounting_user -d accounting_db
 
 ---
 
-## 3. 의존성(`uv`) 추가 및 변경 시 주의사항
+## 4. 원문 PDF와 `PDF_DIR`
 
-파이썬 기반 프로젝트 특성상 개발을 진행하며 라이브러리(`pyproject.toml`)를 추가하거나, 원격 저장소에서 변경된 의존성 잠금 파일(`uv.lock`)을 가져오는 경우가 자주 발생합니다. **의존성에 조금이라도 변경이 생겼다면 반드시 아래 절차에 따라 컨테이너를 새로 빌드하여 환경을 동기화해야 합니다.**
+원문 PDF는 저장소에 포함하지 않는다. API의 `GET /documents/{document_id}/pdf`는 `PDF_DIR`에서 파일을 찾는다.
 
-1. **로컬(호스트) 환경 수정 혹은 잠금 파일 갱신**
+| 위치 | 의미 |
+|---|---|
+| 호스트 `data/raw_data` | 기본 개발 경로. 사용자가 직접 PDF를 둔다. |
+| 컨테이너 `PDF_DIR` | 앱 컨테이너 내부에서 PDF를 찾는 경로다. |
+
+Compose에서 PDF volume을 다른 위치로 마운트하면 `PDF_DIR`도 같은 위치로 맞춘다. 경로가 맞지 않으면 질의와 조항 표시는 되지만 PDF 보기 버튼은 404가 난다.
+
+## 5. 트러블슈팅 — 의존성을 바꿨는데 컨테이너가 옛 버전을 쓸 때
+
+**증상**: `pyproject.toml`에 패키지를 추가했거나 원격에서 받은 `uv.lock`이 바뀌었는데, 컨테이너 안에서는 여전히 이전 패키지 상태로 동작한다.
+
+**원인**: 컨테이너의 가상환경(`/app/.venv`)은 빌드 시점에 고정된다. 로컬에서 `pyproject.toml`·`uv.lock`만 바꿔도 컨테이너 안까지는 자동으로 반영되지 않는다.
+
+**대응**:
+1. 로컬(호스트)에서 의존성을 갱신한다.
    ```bash
    uv add <새로운-패키지명>    # 신규 패키지가 필요할 때
-   uv lock                   # 외부에서 pyproject.toml 변동사항만 가져왔을 때 동기화 목적
+   uv lock                   # 원격에서 pyproject.toml 변동사항만 받았을 때 동기화 목적
    ```
-2. **컨테이너 환경 재구축 (필수)**
-   변경된 정보를 Docker 이미지의 가상 환경(`/app/.venv`) 내부에 반영할 수 있도록 재빌드를 수반하여 컨테이너를 구동합니다.
+2. 컨테이너를 재빌드한다(필수) — 위 변경을 이미지 안 가상환경에 반영한다.
    ```bash
    docker compose up --build -d
    ```

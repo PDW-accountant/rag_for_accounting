@@ -46,7 +46,7 @@ def handle_node_errors(node_name: str):
             try:
                 return func(state)
             except AccountingRAGError as e:
-                # 커스텀 예외 처리(Exception.py에서 정의)
+                # 커스텀 예외 처리(AccountingRAGError 계열)
                 new_logs = state.error_logs + [e.to_error_log()]
                 return {"error_logs": new_logs}
             except Exception as e:
@@ -278,7 +278,7 @@ def rerank(state: GraphState) -> dict:
         f"질의: {state.original_query[:50]}..."
     )
 
-    # TODO: search 노드 구현 후 search-rerank 간 관계 재정의 후에 처리 방식을 명확하게 결정해야 함
+    # TODO: search 실패(빈 결과)와 rerank 자체 실패를 지금처럼 별개로 다룰지, 하나의 재검색 신호로 합칠지 재정의해야 한다
     # 현재는 retrieved_chunks가 비어있을 때 조기 반환하여 ScoreThresholdError를 발생시키지 않는다.
     # 이는 search 노드 실패(빈 결과)와 리랭킹 자체 실패를 구분하기 위함이다.
     if not state.retrieved_chunks:
@@ -333,7 +333,7 @@ def rerank(state: GraphState) -> dict:
 
 def route_after_evaluate(state: GraphState) -> str:
     """
-    TODO: FUNC-009 (평가 후 라우팅 결정)
+    evaluate 노드 직후 라우팅 결정.
     평가 결과 또는 에러 상태에 따라 다음 노드를 결정한다.
 
     [IF문 우선순위]
@@ -390,9 +390,9 @@ def build_workflow(checkpointer: BaseCheckpointSaver | None = None) -> CompiledS
         HIL을 사용하는 run_workflow/resume_workflow는 MemorySaver 싱글턴(_CHECKPOINTER)을 주입한다.
 
     return CompiledStateGraph : LangGraph로 빌드된 상태 그래프
-    왜 CompiledGraph를 사용하는가? -> StateGraph보다 성능이 좋다. (동작 방식은 동일하지만 내부적으로 최적화됨)
-    동작 방식이 어떠한데? -> LangGraph의 build_workflow를 통해 StateGraph를 컴파일하면 CompiledStateGraph 객체가 반환된다.
-    이 객체는 내부적으로 최적화되어 StateGraph보다 빠른 실행 속도를 제공한다. 
+    왜 CompiledGraph를 사용하는가? -> 성능 때문이 아니라 필수 절차이기 때문이다. StateGraph 자체에는
+    invoke()·stream() 같은 실행 메서드가 없어, compile()로 컴파일해야 실행 가능한
+    CompiledStateGraph 객체가 된다.
     """
     workflow = StateGraph(GraphState)
 
@@ -494,6 +494,16 @@ def _timeout_fallback_response() -> FinalResponse:
     )
 
 
+def _recursion_error_log(e: GraphRecursionError) -> ErrorLog:
+    # 재시도 소진(recursion_limit 초과)도 그래프 러너가 던지므로 어느 노드에서 소진됐는지 특정할 수 없다.
+    return {
+        "timestamp": datetime.now(KST).isoformat(),
+        "node": "workflow",
+        "error_type": "RECURSION_LIMIT",
+        "message": str(e) or "최대 재시도 횟수를 초과했습니다.",
+    }
+
+
 def _timeout_error_log(e: TimeoutError) -> ErrorLog:
     # step_timeout은 그래프 러너가 던지므로 어느 노드에서 초과됐는지 특정할 수 없다 → node="workflow"
     return {
@@ -547,17 +557,17 @@ def run_workflow(
         result = app.invoke(initial_state, config=_run_config(thread_id, metadata))
         result["thread_id"] = thread_id
         return result
-    except GraphRecursionError:
-        # GraphRecursionError 발생 시 최선 답변 혹은 답변 불가 상태 반환
+    except GraphRecursionError as e:
+        # 재시도 소진 — TIMEOUT 폴백과 대칭으로 폴백 GraphState + error_logs를 반환한다.
         initial_state.final_response = _recursion_fallback_response()
-        # TODO: 예외 발생 시 error_logs 기록 및 상태 반환 로직 정교화
+        initial_state.error_logs = initial_state.error_logs + [_recursion_error_log(e)]
         # invoke() 결과와 동일한 직렬화 구조 유지를 위해, model_dump() 대신
-        # Pydantic 인스턴스를 값으로 유지하는 dict comprehension 방식을 사용합니다.
-        fallback = {k: getattr(initial_state, k) for k in GraphState.model_fields}  # 예시: {'original_query': '....', ...}
+        # Pydantic 인스턴스를 값으로 유지하는 dict comprehension 방식을 사용한다.
+        fallback = {k: getattr(initial_state, k) for k in GraphState.model_fields}
         fallback["thread_id"] = thread_id
         return fallback
     except TimeoutError as e:
-        # 노드 실행이 step_timeout을 초과 — 구조화 반환 계약(#131)에 따라
+        # 노드 실행이 step_timeout을 초과 — 구조화 반환 계약에 따라
         # GraphRecursionError와 동일하게 폴백 GraphState + error_logs를 반환한다.
         initial_state.final_response = _timeout_fallback_response()
         initial_state.error_logs = initial_state.error_logs + [_timeout_error_log(e)]
@@ -590,11 +600,12 @@ def resume_workflow(
         result = app.invoke(Command(resume=resume_value), config=_run_config(thread_id, metadata))
         result["thread_id"] = thread_id
         return result
-    except GraphRecursionError:
+    except GraphRecursionError as e:
         # 재개 시점에는 initial_state가 없으므로 체크포인트에 보관된 현재 상태를 복원해 폴백을 구성한다.
         snapshot = app.get_state(_run_config(thread_id))
         fallback = dict(snapshot.values)
         fallback["final_response"] = _recursion_fallback_response()
+        fallback["error_logs"] = list(fallback.get("error_logs", [])) + [_recursion_error_log(e)]
         fallback["thread_id"] = thread_id
         return fallback
     except TimeoutError as e:

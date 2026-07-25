@@ -4,8 +4,7 @@ API 경로 HIL 왕복 라이브 스모크
 test_hil_live_resume.py와 동일한 라이브 경로(실 LLM 분류 → interrupt → approve → 완료)를 HTTP 계층에서 검증한다:
 FastAPI TestClient가 실제 lifespan(풀 초기화·임베딩 워밍업)을 실행하고, /query의 interrupted 유니언 응답 → /resume(approve) → done 응답(조항·답변)을 단언한다.
 
-@pytest.mark.benchmark 게이트(라이브 LLM+Docker
- — tests/integration/conftest.py의 check_integration_env가 키/인프라 부재 시 세션 skip 한다.
+@pytest.mark.benchmark 게이트(라이브 LLM+Docker 필요) — tests/integration/conftest.py의 check_integration_env가 키/인프라 부재 시 세션 skip 한다.
 워크플로 로직 자체의 검증은 test_hil_live_resume.py 책임이고, 본 스모크의 책임은 API 계약(유니언 스키마·상태코드)과 서버 lifespan 경로다.
 """
 from __future__ import annotations

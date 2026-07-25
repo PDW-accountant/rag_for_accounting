@@ -20,11 +20,11 @@ Phase 구조:
 
     Phase 1 (System Integration — Fast Fail)
         가짜 데이터를 이용해 노드 간 데이터 규격·예외 경로·라우팅 로직을
-        검증합니다. Phase 0 통과 후에만 실행됩니다.
+        검증합니다. 기본 실행에는 Phase 0 통과 후에만 실행되며, --phase1-only 옵션을 쓰면 Phase 0 없이 단독으로 실행할 수 있습니다.
 
     Phase 2 (Benchmark — Business Quality)
         Benchmark 정답셋(K-GAAP 14개)을 투입하여 답변 품질·근거 인용·
-        기준서 필터 정합성을 검증합니다. Phase 1 통과 후에만 실행됩니다.
+        기준서 필터 정합성을 검증합니다. 기본 실행에는 Phase 1 통과 후에만 실행되며, --phase2-only 옵션을 쓰면 이전 단계 없이 단독으로 실행할 수 있습니다.
 
 설계 원칙:
     "통합 테스트는 벤치마크 데이터를 활용한 전체 파이프라인 검증을 원칙으로 하되,

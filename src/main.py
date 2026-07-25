@@ -6,8 +6,9 @@
      온톨로지 그래프 → 청킹(FUNC-002/003) → pgvector 적재(FUNC-003)
      · 기본 소스: 미리 빌드된 온톨로지 JSON(data/ontology/*.json)
      · --pdf/--md 지정 시: 파싱(FUNC-001) → 온톨로지 빌드(FUNC-002) → 청킹 → 적재까지 전체 경로
-     · 적재 대상 테이블은 검색기(searcher.py)가 조회하는 CHUNKS_TABLE("chunks")로 고정해
-       적재와 검색이 동일 테이블을 공유하도록 한다.
+     · 적재 대상 테이블은 기본값으로 검색기가 조회하는 CHUNKS_TABLE("chunks")를 써서 적재와 검색이
+       같은 테이블을 보게 한다. --collection으로 다른 테이블을 지정하면 이 전제가 깨지므로, 특별한
+       이유가 없으면 기본값을 그대로 쓴다.
 
   2. query — 질의 경로
      질의 → LangGraph 워크플로(rewrite→search→rerank→evaluate→generate, FUNC-004~009)
@@ -39,7 +40,7 @@ logger = get_logger(__name__)
 
 def _load_graph_from_json(path: Path):
     """저장된 온톨로지 그래프 JSON을 OntologyGraph로 역직렬화한다."""
-    from src.db.ontology.models import OntologyGraph
+    from src.ingest.ontology.models import OntologyGraph
 
     return OntologyGraph.model_validate_json(path.read_text(encoding="utf-8"))
 
@@ -50,14 +51,14 @@ def _build_graph_from_source(args):
     PDF는 DoclingParser로 마크다운을 추출한 뒤 build_graph에 넘긴다.
     LLM 엣지 추출이 포함되므로 OPENAI_API_KEY와 실행 시간이 필요하다.
     """
-    from src.db.ontology.builder import build_graph
+    from src.ingest.ontology.builder import build_graph
 
     if args.md:
         md_path = Path(args.md)
     else:
         # PDF → 마크다운(FUNC-001). build_graph는 마크다운 파일 경로를 입력으로 받으므로
         # 파싱 결과 텍스트를 임시 .md로 저장해 전달한다.
-        from src.parse.parser import DoclingParser
+        from src.ingest.parse.parser import DoclingParser
 
         pdf_path = Path(args.pdf)
         logger.info(f"PDF 파싱 시작: {pdf_path}")
@@ -74,8 +75,11 @@ def _build_graph_from_source(args):
 def _index_graph(
     graph, source_path: str | None, collection: str, *, clause_level: bool, max_tokens: int
 ) -> dict:
-    """온톨로지 그래프 한 개를 청킹 후 적재하고 IndexingResult를 dict로 반환한다."""
-    from src.db.ontology.chunker import chunk_graph
+    """온톨로지 그래프 한 개를 청킹 후 적재하고 IndexingResult를 dict로 반환한다.
+
+    단, 청킹 결과가 비어 있으면 적재를 건너뛰고 status="failed"인 dict를 직접 만들어 반환한다.
+    """
+    from src.ingest.ontology.chunker import chunk_graph
     from src.db.vector_store import index_documents
 
     chunks = chunk_graph(
@@ -192,18 +196,27 @@ def _print_response(result: dict) -> None:
 
 
 def _preload_embedding() -> None:
-    """첫 질의 전 임베딩 모델을 preload해 콜드 로드를 step_timeout(노드 30s) 밖으로 분리한다.
+    """
+    첫 질의 전 임베딩·리랭커 모델을 preload해 콜드 로드를 step_timeout(노드 30s) 밖으로 분리한다.
 
-    KURE-v1 콜드 로드(mps ~50초)가 search 노드 안에서 일어나면 step_timeout을 넘겨 첫 질의가 TimeoutError로 실패할 수 있다.
+    KURE-v1 콜드 로드(mps ~50초)나 리랭커(bge-reranker-v2-m3, ~2.2GB) 콜드 로드가 노드 안에서 일어나면
+    step_timeout을 넘겨 첫 질의가 TimeoutError로 실패할 수 있다.
     invoke() 전에 미리 데워 이를 막는다.
+    리랭커는 USE_RERANKER가 켜져 있을 때만 로드한다.
     실패해도(예: HF 접속 불가) 막지 않는다. 첫 질의가 기존 lazy 로드로 폴백한다.
     """
-    from src.utils.embedding import warmup_model
+    from src.clients.embedding import warmup_model
+    from src.retrieval.reranker import warmup_reranker
 
     try:
         warmup_model()
     except Exception as e:  # noqa: BLE001 — preload 실패는 비치명적(lazy 폴백 존재)
         logger.warning(f"임베딩 preload 실패 — 첫 질의에서 lazy 로드로 폴백: {e}")
+
+    try:
+        warmup_reranker()
+    except Exception as e:  # noqa: BLE001 — preload 실패는 비치명적(lazy 폴백 존재)
+        logger.warning(f"리랭커 preload 실패 — 첫 질의에서 lazy 로드로 폴백: {e}")
 
 
 def run_query(args) -> int:

@@ -12,7 +12,7 @@ from src.utils.config import (
     EMBEDDING_MODEL
 )
 from src.utils.exception import SearchTimeoutError, DatabaseQueryError, NoContextFoundError
-from src.utils.embedding import embed_texts
+from src.clients.embedding import embed_texts
 from src.db.connection import get_pool
 from src.utils.logger import get_logger
 
@@ -38,7 +38,7 @@ def _build_where_clause(metadata_filter: dict | None) -> tuple[str, list]:
     params = []       # 파라미터 리스트(예: ["period", "2024"], ["accounting_standard", "K-IFRS"])
     for key, value in metadata_filter.items():
         # metadata 컬럼이 JSONB 타입이라고 가정하고 ->> 연산자 사용
-        # metadata: ingester.py에서 JSONB로 저장
+        # metadata: 적재(인덱싱) 로직에서 JSONB로 저장됨
         conditions.append(f"metadata->>%s = %s")    # JSONB 타입의 metadata에서 key에 해당하는 값을 string으로 반환하여 비교
         params.extend([key, str(value)])          # 메타데이터의 key와 value를 파라미터로 전달
 
@@ -51,7 +51,7 @@ def dense_search(query_embedding: list[float], top_k: int, metadata_filter: dict
     where_clause, params = _build_where_clause(metadata_filter)
 
     # query_embedding은 %s::vector 타입으로 캐스팅하여 비교
-    # embedding <=> %s::vector: 두 벡터 간의 코사인 유사도를 계산 (0=동일, 2=정반대)
+    # embedding <=> %s::vector: 두 벡터 간의 코사인 거리를 계산 (0=동일, 2=정반대). 거리이므로 값이 작을수록 더 유사하다.
     # 1 - (코사인 거리) = 코사인 유사도 -> 점수로 사용하면 유사도가 높을수록 점수도 높음
     # 테이블명은 sql.Identifier로 인용해 식별자 안전성을 보장한다(vector_store와 동일 규약).
     # where_clause/%s 플레이스홀더는 sql.SQL 조각으로 그대로 전달되어 execute 시 params로 바인딩된다.
@@ -71,7 +71,7 @@ def dense_search(query_embedding: list[float], top_k: int, metadata_filter: dict
 def sparse_search(query: str, top_k: int, metadata_filter: dict | None = None, collection: str = CHUNKS_TABLE) -> list[RetrievedChunk]:
     """PostgreSQL 내장 텍스트 검색(ts_rank_cd 순위)을 활용한 Sparse 검색. collection으로 검색 대상 테이블을 지정한다(기본: 운영 CHUNKS_TABLE).
 
-    ts_rank_cd는 BM25가 아니라 IDF(흔한 단어를 자동으로 덜 세는 가중치)가 없다.
+    ts_rank_cd는 BM25와 달리 IDF(흔한 단어를 자동으로 덜 세는 가중치)가 없다.
     이 부재로 흔한 용어가 순위를 지배해, sparse 활성화가 두 차례 실측에서 기각됐다.
     """
     # WHERE 조건이 있다면 AND로 연결, 없으면 WHERE로 시작

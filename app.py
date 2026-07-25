@@ -44,7 +44,7 @@ def _warmup_embedding() -> bool:
 
     실패해도 앱을 막지 않는다 — 첫 질의가 기존 lazy 로드로 폴백한다.
     """
-    from src.utils.embedding import warmup_model
+    from src.clients.embedding import warmup_model
 
     try:
         warmup_model()

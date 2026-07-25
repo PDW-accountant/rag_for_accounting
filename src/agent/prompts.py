@@ -63,7 +63,7 @@ CLASSIFY_STRATEGY_PROMPT: str = """당신은 사용자 질의를 분석하여 �
 - 결합: 사업결합, 연결재무제표, 지분법, 종속기업·관계기업
 비회계 (false): 인사말, 날씨, 일반 상식, 코딩, 요리, 법률(민법·상법 일반), 세무·세법
 
-[strategy 선택 기준] — is_accounting=true인 경우에만 적용
+[strategy 선택 기준] — is_accounting=false면 "bypass"를 선택하고, is_accounting=true면 아래 세 가지 중 하나를 선택한다.
 - "bypass"  : is_accounting=false인 경우
 - "stepback": 특정 회사명·금액·날짜가 포함된 과도하게 구체적인 질의 → 일반 원칙 질의로 추상화
 - "decompose": 두 가지 이상의 독립적인 회계 주제를 동시에 묻는 복합 질의 → 하위 질문으로 분해

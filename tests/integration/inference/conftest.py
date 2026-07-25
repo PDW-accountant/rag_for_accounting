@@ -19,7 +19,8 @@ def mock_rewrite_llm(request):
     파이프라인이 정상적으로 진행되도록 보장한다. 모든 전략 함수가 동일 응답을 안전하게 파싱할 수
     있도록 hypothetical_answer/sub_queries/abstract_query를 함께 포함한다.
 
-    단, 실제 LLM 분류를 검증하는 test_rewrite_all_queries(system 미표시)에는 적용하지 않는다.
+    단, 이 fixture는 request에 system 마커가 붙은 테스트에만 적용된다.
+    실제 LLM 응답으로 회계/비회계 분류를 검증하는 별도 테스트는 현재 저장소에 존재하지 않는다.
     """
     if request.node.get_closest_marker("system") is None:
         yield

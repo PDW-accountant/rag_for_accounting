@@ -407,7 +407,7 @@ class TestRewriteQuery:
     def test_classify_fail_but_strategy_succeeds(self):
         # 첫 호출(분류)은 예외 → classify_and_select 내부 폴백 (True, "hyde", 0.0)
         # 두 번째 호출(전략-HyDE)은 성공 → [원문, 가상답변]
-        # 분류 실패가 함수 안에서 삼켜지므로 outer except 미발동 → error_logs 비어 있음
+        # 분류 실패가 함수 안에서 삼켜지므로 outer except는 미발동하지만, classify_and_select 내부에서 CM-002로 error_logs에 1건이 기록된다
         original_query = "리스부채 최초 인식 방법은?"
         with patch(self.PATCH) as mock_client:
             mock_client.chat.completions.create.side_effect = [
@@ -428,7 +428,7 @@ class TestRewriteQuery:
     def test_classify_succeeds_but_strategy_fails(self):
         # 첫 호출(분류)은 성공하여 "decompose" 할당
         # 두 번째 호출(전략)은 예외 → apply_decompose 내부 폴백 [원문]
-        # 전략 실패가 함수 안에서 삼켜지므로 outer except 미발동 → error_logs 비어 있음
+        # 전략 실패가 함수 안에서 삼켜지므로 outer except는 미발동하지만, apply_decompose 내부에서 CM-002로 error_logs에 1건이 기록된다
         original_query = "유형자산과 무형자산의 감가상각 방법 차이는?"
         with patch(self.PATCH) as mock_client:
             mock_client.chat.completions.create.side_effect = [

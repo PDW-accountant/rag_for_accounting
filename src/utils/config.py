@@ -28,10 +28,10 @@ MAX_REWRITE_COUNT: int = 3          # FUNC-004: CRAG 루프(평가 임계치 미
 MAX_HIL_COUNT: int = 5              # 워크플로우: Human-in-the-Loop 재작성 요청 최대 반복 횟수 (CRAG 루프와 분리)
 TOP_K_RETRIEVAL: int = 10           # FUNC-005: 1차 검색 반환 청크 수
 
-# Reranking Configuration — .env로 토글 가능, 기본값은 테스트/CI 보존을 위해 유지
+# Reranking Configuration — .env로 토글 가능. 기본은 OFF.
 USE_RERANKER: bool = _env_bool("USE_RERANKER", False)           # 리랭킹 모델 활성화 여부
 RERANK_THRESHOLD: float = _env_float("RERANK_THRESHOLD", 0.5)   # FUNC-006: 재정렬 후 필터링 임계값 (기본값: 중간 신뢰도)
-RERANK_MODEL: str = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")  # FUNC-006: Cross-Encoder 모델 식별자
+RERANK_MODEL: str = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")  # FUNC-006: Cross-Encoder 모델 식별자
 VECTOR_COLLECTION_NAME: str = "rag_for_accounting"  # FUNC-003: pgvector 컬렉션명
 OPENAI_MODEL: str = "gpt-5.4-mini"   # FUNC-007, 008, 009: LLM 모델 식별자
 
@@ -46,7 +46,7 @@ BATCH_SIZE: int = 100          # 인덱싱 배치 크기
 SEARCH_TIMEOUT_SECONDS: int = 5
 
 # 임베딩 모델 설정 — 이슈 #93에서 KURE-v1(자체호스팅, MIT 라이선스)로 확정
-# 인덱싱(FUNC-003)과 검색(FUNC-005)이 src/utils/embedding.embed_texts()를 공유하므로
+# 인덱싱(FUNC-003)과 검색(FUNC-005)이 src/clients/embedding.embed_texts()를 공유하므로
 # 모델·차원 불일치가 구조적으로 발생하지 않는다.
 EMBEDDING_MODEL: str = "nlpai-lab/KURE-v1"
 EMBEDDING_DIM: int = 1024   # KURE-v1(bge-m3 기반) 벡터 차원 수 → pgvector vector(1024)
@@ -91,9 +91,10 @@ API_CORS_ORIGINS: list[str] = [
     if origin.strip()
 ]
 
-# 원본 PDF 소재 디렉토리 — 페이지 백필(scripts/backfill_page_map.py)과 PDF 서빙이 공유하는 BYO 규약.
-# 규약(resolve_pdf_path): {PDF_DIR}/{document_id}.pdf 우선, 없으면 제N장*.pdf 글롭(현행 data/raw 호환).
-PDF_DIR: str = os.getenv("PDF_DIR", "data/raw")
+# 원본 PDF 소재 디렉토리 — 페이지 백필과 PDF 서빙이 공유하는 규약.
+# 저작권 문제로 원문 PDF를 저장소에 포함하지 않고, 사용자가 직접 준비해 이 디렉토리에 두는 방식을 쓴다.
+# 규약(resolve_pdf_path): {PDF_DIR}/{document_id}.pdf 우선, 없으면 제N장*.pdf 글롭(현행 data/raw_data 호환).
+PDF_DIR: str = os.getenv("PDF_DIR", "data/raw_data")
 
-# 시간대(에러 로그 기록 시 한국 표준시(UTC+9)를 기준으로 하기 위함)
+# 시간대 — 일반 로그와 오류 기록(ErrorLog.timestamp) 모두 한국 표준시(KST, UTC+9) 기준으로 통일하기 위함
 KST = timezone(timedelta(hours=9))

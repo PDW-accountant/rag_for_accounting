@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 def generate_response(state: GraphState) -> dict:
     """
     reranked_chunks와 GENERATION_PROMPT를 이용해 최종 답변을 생성한다.
-    - 인용 근거를 포함한 FinalResponse를 state.final_response에 저장
+    - 인용 근거를 포함한 FinalResponse를 만들어 state.final_response에 저장하고, 신뢰도 계산에 쓴 retrieval_score·generation_score도 함께 반환한다
     """
     # PydanticAI 에이전트 초기화
     # 접두사를 "openai-chat:"으로 고정한다. pydantic-ai v2.0부터 "openai:"는 Responses API로

@@ -5,7 +5,7 @@ from typing import Literal
 from src.models.state import ErrorLog
 from src.utils.config import KST
 
-# 허용되는 노드 타입 (LangGraph의 각 노드)
+# 허용되는 노드 타입 — 질의 처리 그래프 노드와 오프라인 인덱싱·파싱 단계를 함께 담은 식별자
 NodeType = Literal["rewrite", "search", "rerank", "evaluate", "generate", "parse", "ontology", "index"]
 
 class AccountingRAGError(Exception):
@@ -24,7 +24,7 @@ class AccountingRAGError(Exception):
         :param node: 에러가 발생한 노드명 ("rewrite", "search", "rerank", "evaluate", "generate", "parse", "ontology", "index")
         :param error_type: 예외 식별 ID (예: "SE-101", "GN-401")
         """
-        super().__init__(message) # 부모 생성자를 호출하여 Exception 클래스의 message 속성을 초기화한다.
+        super().__init__(message) # 부모 생성자를 호출해 Exception의 표준 속성인 args를 초기화한다. message 속성은 다음 줄에서 이 클래스가 직접 설정한다.
         self.message = message
         self.node = node
         self.error_type = error_type
@@ -57,7 +57,7 @@ class ConfigNotFoundError(AccountingRAGError):
 
 class LLMAPIConnectionError(AccountingRAGError):
     """
-    [CM-002] LLM API 호출에 실패했을 때(네트워크/인증 오류) 발생하는 예외입니다.
+    [CM-002] LLM API 또는 임베딩 모델 호출에 실패했을 때(네트워크·인증 오류뿐 아니라 모델 로드·인코딩 실패도 포함) 발생하는 예외입니다.
     """
     def __init__(self, message: str, node: NodeType):
         super().__init__(message=message, node=node, error_type="CM-002")
@@ -65,7 +65,7 @@ class LLMAPIConnectionError(AccountingRAGError):
 class DocumentParseError(AccountingRAGError):
     """
     [CM-003] 문서 파일 파싱에 실패했을 때 발생하는 예외입니다.
-    착지점: src/parse/parser.py DoclingParser.parse() (converter.convert() /
+    착지점: src/ingest/parse/parser.py DoclingParser.parse() (converter.convert() /
     export_to_markdown() 실패 변환). raise 사이트 도입 전까지는 미배선 상태.
     """
     def __init__(self, message: str, node: NodeType):

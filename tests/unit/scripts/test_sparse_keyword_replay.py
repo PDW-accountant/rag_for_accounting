@@ -34,7 +34,7 @@ class TestStripStopwords:
     """
 
     def test_removes_standalone_function_words(self):
-        # "및"·"때"는 홀로 선 일반어라 제거되고, 시그널 명사는 남는다
+        # "및"은 홀로 선 일반어, "언제"는 의문사라 함께 제거되고, 나머지 명사는 남는다
         assert strip_stopwords("퇴직급여 및 인식 시점은 언제") == "퇴직급여 인식 시점은"
 
     def test_keeps_content_words_with_attached_josa(self):

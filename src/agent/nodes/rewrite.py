@@ -10,7 +10,7 @@
 #      - hyde     : [원문, 가상답변]
 #      - decompose: [원문, 서브쿼리1, ...]
 #      - stepback : [원문, 추상화쿼리]
-#   3. LLM 실패 시 원문만 반환 (Bypass)
+#   3. LLM 실패 시 search_queries를 원문 한 개만 남긴다 (strategy 값 자체는 바뀌지 않으며, 1번의 'bypass' 전략과는 별개)
 
 import json
 import re
@@ -25,7 +25,7 @@ from src.models.schemas import RewrittenQuery
 from src.models.state import ErrorLog, GraphState
 from src.utils.config import OPENAI_MODEL
 from src.utils.exception import LLMAPIConnectionError
-from src.utils.llm_client import client
+from src.clients.llm import client
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -114,7 +114,7 @@ def _feedback_clause(feedback: str | None) -> str:
 
 def apply_hyde(query: str, standard_filter: str, feedback: str | None = None,
                error_logs: list[ErrorLog] | None = None) -> list[str]:
-    """원문 + 가상 답변을 반환한다. LLM 실패 시 원문만 반환."""
+    """원문 + 가상 답변을 반환한다. LLM 호출이 실패하거나 가상 답변이 빈 문자열이면 원문만 반환."""
     try:
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
@@ -134,7 +134,7 @@ def apply_hyde(query: str, standard_filter: str, feedback: str | None = None,
 
 def apply_decompose(query: str, standard_filter: str, feedback: str | None = None,
                     error_logs: list[ErrorLog] | None = None) -> list[str]:
-    """원문 + 서브쿼리들을 반환한다. LLM 실패 시 원문만 반환."""
+    """원문 + 서브쿼리들을 반환한다. LLM 호출이 실패하거나 서브쿼리 목록이 비어 있으면 원문만 반환."""
     try:
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
@@ -154,7 +154,7 @@ def apply_decompose(query: str, standard_filter: str, feedback: str | None = Non
 
 def apply_stepback(query: str, standard_filter: str, feedback: str | None = None,
                    error_logs: list[ErrorLog] | None = None) -> list[str]:
-    """원문 + 추상화된 원칙 쿼리를 반환한다. LLM 실패 시 원문만 반환."""
+    """원문 + 추상화된 원칙 쿼리를 반환한다. LLM 호출이 실패하거나 추상화 쿼리가 빈 문자열이면 원문만 반환."""
     try:
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,

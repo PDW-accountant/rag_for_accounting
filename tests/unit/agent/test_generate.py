@@ -183,7 +183,10 @@ class TestGenerateResponse:
         assert result["final_response"].is_answerable is False       # 폴백 응답이 반환되는지 확인
 
     def test_context_truncation_drops_excess_chunks(self):
-        """MAX_CONTEXT_TOKENS 초과 시 후순위 청크가 조립에서 제외되는지 검증 (GN-402 트런케이션)"""
+        """
+        MAX_CONTEXT_TOKENS 초과 시 후순위 청크가 에러 로그 없이 조립에서 제외되는지 검증
+        (GN-402는 첫 청크 단독 초과 시에만 별도로 발생 — test_context_length_exceeded_raises_gn402 참고)
+        """
         small_content = "청크내용" * 10
         # [2] + large_content를 추가하면 estimated_tokens > MAX_CONTEXT_TOKENS가 되도록 설정
         large_content = "가" * (MAX_CONTEXT_TOKENS * 2 + 1)

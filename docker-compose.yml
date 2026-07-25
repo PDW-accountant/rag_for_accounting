@@ -45,10 +45,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-accounting_db}
       EMBEDDING_SERVER_URL: http://embedding:80
       FRONTEND_DIST_DIR: /app/frontend/dist
+      # 리랭커(bge-reranker-v2-m3, ~2.2GB)가 HF 허브에서 받는 모델을 이 경로에 캐시한다.
+      # 아래 hf_cache 볼륨과 짝을 이뤄 컨테이너 재생성마다 2.2GB를 다시 받지 않게 한다.
+      HF_HOME: /app/hf_cache
     ports:
       - "8000:8000"
     volumes:
       - ./data/raw:/app/data/raw:ro
+      - hf_cache:/app/hf_cache   # 리랭커 모델 재생성 시 재다운로드 방지
     depends_on:
       database:
         condition: service_healthy
@@ -59,3 +63,4 @@ services:
 volumes:
   postgres_data:
   tei_cache:
+  hf_cache:

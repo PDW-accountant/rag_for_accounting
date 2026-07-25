@@ -1,7 +1,7 @@
 """운영 chunks에 page_start/page_end metadata를 백필한다.
 
 원본 PDF를 Docling으로 재파싱(파싱만 — 온톨로지 빌드·재임베딩 없음)해 페이지 맵을 만들고,
-기존 청크 content를 정렬(src/parse/page_map.assign_pages)해 metadata JSONB에 페이지 범위를 병합(UPDATE)한다.
+기존 청크 content를 정렬(src/ingest/parse/page_map.assign_pages)해 metadata JSONB에 페이지 범위를 병합(UPDATE)한다.
 content·embedding은 불변이므로 검색 결과에 영향이 없다.
 
 사용 (호스트에서 실행, DB는 docker — POSTGRES_HOST 보정 필요):
@@ -15,7 +15,7 @@ content·embedding은 불변이므로 검색 결과에 영향이 없다.
 - 재파싱은 적재 시점과 동일 Docling 버전이어야 한다(uv.lock 고정) — 리포트에 버전을 스탬프한다.
 - reading order 재정렬(reorder_reading_order)은 페이지 귀속(prov.page_no)과 무관하므로 생략한다.
 - 미매칭 청크는 건드리지 않는다(페이지 키 부재 → 뷰어 버튼 미표시로 자연 강등).
-- 리포트의 '페이지 걸침'과 '표 포함' 청크 목록은 DoD 95% 게이트의 수동 대조 표본 (강제 포함 유형)을 뽑는 데 쓴다.
+- 리포트의 '페이지 걸침'과 '표 포함' 청크 목록은, 백필 결과를 사람이 눈으로 검수해 완료 여부를 판정하는 수동 대조 표본을 뽑을 때 반드시 포함해야 하는 유형이다.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ sys.path.insert(0, str(_ROOT))
 from psycopg.types.json import Jsonb
 
 from src.db.connection import close_pool, get_pool, init_pool
-from src.parse.page_map import (
+from src.ingest.parse.page_map import (
     assign_pages,
     build_page_texts,
     marker_pages,

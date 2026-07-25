@@ -48,7 +48,8 @@ class CitationOut(BaseModel):
 class InterruptOption(BaseModel):
     """HIL 결정 선택지 — /resume의 action으로 되돌아온다."""
 
-    action: str
+    # ResumeRequest.action(Literal)·프론트 api.ts ResumeAction과 동일 계약 — 새 action 추가 시 세 곳을 함께 고친다.
+    action: Literal["approve", "rewrite"]
     label: str
 
 
@@ -69,7 +70,7 @@ class QueryDoneResponse(BaseModel):
     answer: str
     is_answerable: bool
     confidence: float
-    error_code: Literal["TIMEOUT"] | None = None
+    error_code: Literal["TIMEOUT", "RECURSION_LIMIT"] | None = None
     clauses: list[ClauseOut]
     citations: list[CitationOut]
 
@@ -85,15 +86,17 @@ class QueryInterruptedResponse(BaseModel):
 WorkflowResponse = QueryDoneResponse | QueryInterruptedResponse
 
 
-def _derive_error_code(error_logs: list[dict]) -> Literal["TIMEOUT"] | None:
+def _derive_error_code(error_logs: list[dict]) -> Literal["TIMEOUT", "RECURSION_LIMIT"] | None:
     """
-    폴백이 기록한 워크플로 레벨 TIMEOUT을 응답 구분자로 파생한다.
+    폴백이 기록한 워크플로 레벨 오류(TIMEOUT·RECURSION_LIMIT)를 응답 구분자로 파생한다.
 
-    GraphRecursionError 폴백은 error_logs를 기록하지 않으므로 None이다
-    TODO! #210에서 v1.1에서 대칭화 예정 — 그 전까지 클라이언트는 일반 답변불가와 구분 불가.
+    타임아웃과 재시도 소진 둘 다 error_logs에 한 줄을 남기므로, 클라이언트가 이 코드로 일시적 실패(재시도 유도)를 일반 답변불가와 구분한다.
+    노드 레벨 에러(CM-002 등)는 폴백 구분자가 아니므로 매핑하지 않는다.
     """
     if any(log.get("error_type") == "TIMEOUT" for log in error_logs):
         return "TIMEOUT"
+    if any(log.get("error_type") == "RECURSION_LIMIT" for log in error_logs):
+        return "RECURSION_LIMIT"
     return None
 
 

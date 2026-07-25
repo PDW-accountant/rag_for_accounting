@@ -17,7 +17,7 @@
 ## 임계값·설정 SSoT
 
 모델·임계값·상수는 **`src/utils/config.py`가 정본**이다. 문서에 수치를 복제하지 말고 이 파일을 가리킨다.
-`근거:` 인덱싱(FUNC-003)과 검색(FUNC-005)이 `src/utils/embedding.py`를 공유하므로, 모델·차원을 한 곳에서 고정해야 불일치가 구조적으로 안 난다. 수치를 문서에 박으면 드리프트가 생긴다.
+`근거:` 인덱싱(FUNC-003)과 검색(FUNC-005)이 `src/clients/embedding.py`를 공유하므로, 모델·차원을 한 곳에서 고정해야 불일치가 구조적으로 안 난다. 수치를 문서에 박으면 드리프트가 생긴다.
 예: `OPENAI_MODEL` · `EMBEDDING_MODEL` · `EMBEDDING_DIM` · `RRF_K` · `TOP_K_RETRIEVAL` · `MAX_REWRITE_COUNT` · `USE_RERANKER`.
 
 ## 작성 규칙

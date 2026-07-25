@@ -2,7 +2,8 @@
 
 워크플로·DB 풀·임베딩 워밍업은 모킹하고 HTTP 계약(상태코드·유니언 스키마)만 검증한다:
 done/interrupted 스키마 · resume 왕복(재중단 포함) · 타임아웃 폴백 error_code ·
-미존재 thread_id 404 · 빈 질의 422 · 비회계 조기종료.
+미존재 thread_id 404 · 빈 질의 422 · 비회계 조기종료 ·
+원문 PDF 서빙(정상 응답·미제공 404·경로 탈출 방어).
 """
 import uuid
 
@@ -128,6 +129,24 @@ class TestQuery:
         assert body["error_code"] == "TIMEOUT"
         assert body["is_answerable"] is False
 
+    def test_recursion_fallback_returns_200_with_error_code(self, client, monkeypatch):
+        """재시도 소진 폴백은 200 done + error_code="RECURSION_LIMIT"이다."""
+        fallback = _done_result(
+            final_response=FinalResponse(
+                answer="너무 많은 재시도가 발생하여 답변을 생성하지 못했습니다. 질문을 구체화하여 다시 시도해주세요.",
+                citations=[],
+                is_answerable=False,
+                confidence_score=0.0,
+            ),
+            error_logs=[{**TIMEOUT_LOG, "error_type": "RECURSION_LIMIT"}],
+        )
+        monkeypatch.setattr("src.api.server.run_workflow", lambda q, standard_filter="ALL": fallback)
+        r = client.post("/query", json={"query": "무한 반복되는 질의"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["error_code"] == "RECURSION_LIMIT"
+        assert body["is_answerable"] is False
+
     def test_non_accounting_early_exit(self, client, monkeypatch):
         """비회계 질의 조기종료도 정상 done 응답이다(error_code 없음, 안내 answer)."""
         early = _done_result(
@@ -213,6 +232,17 @@ class TestDocumentPdf:
         """BYO 환경에서 PDF 미제공 시 404 — 뷰어는 안내 메시지로 강등한다(DoD)."""
         monkeypatch.setattr("src.api.server.PDF_DIR", str(tmp_path))
         assert client.get("/documents/gaap-ch10/pdf").status_code == 404
+
+    def test_head_is_supported_for_availability_check(self, client, monkeypatch, tmp_path):
+        """React 뷰어(checkPdfAvailable)는 HEAD로 제공 여부를 묻는다.
+
+        Starlette 1.x는 GET 라우트에 HEAD를 자동 추가하지 않아, 명시 등록이 없으면
+        405가 되어 PDF가 있어도 뷰어가 항상 안내 메시지로 강등된다.
+        """
+        (tmp_path / "gaap-ch10.pdf").write_bytes(b"%PDF-1.4 test")
+        monkeypatch.setattr("src.api.server.PDF_DIR", str(tmp_path))
+        r = client.head("/documents/gaap-ch10/pdf")
+        assert r.status_code == 200
 
     def test_path_escape_attempt_is_rejected(self, client, monkeypatch, tmp_path):
         """document_id는 [a-z0-9-] 패턴만 허용 — 경로 탈출 시도가 PDF 라우트에 도달하지 못한다.

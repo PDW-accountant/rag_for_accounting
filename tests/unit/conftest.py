@@ -54,7 +54,7 @@ def mock_llm_agent():
 
     with patch("src.agent.nodes.generate.Agent", return_value=generate_mock_instance), \
          patch("src.agent.nodes.evaluate.Agent", return_value=evaluate_mock_instance):
-        yield   # 패치가 적용된 mock 객체를 yield 하여 다른 테스트에서 사용할 수 있도록 한다.
+        yield   # with 블록의 patch를 테스트 실행 동안 유지하기 위해 yield한다(값은 반환하지 않는다).
 
 
 @pytest.fixture

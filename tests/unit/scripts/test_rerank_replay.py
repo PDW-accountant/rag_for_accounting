@@ -49,7 +49,7 @@ class TestFuseTopN:
 
 
 class TestJudgeAdoption:
-    """judge_adoption() — 사전 확정 기준(Hit@1 순증 ≥+2 · 회귀 0 · MRR 순증 >0 · p50 ≤1s)"""
+    """judge_adoption() — 사전 확정 기준(Hit@1 순증 ≥+2 · 회귀 0 · MRR 순증 >0 · p50 ≤5s)"""
 
     def test_adopts_when_all_criteria_met(self):
         """순증 2건·회귀 0·MRR 상승·지연 통과 → 채택"""
@@ -84,13 +84,22 @@ class TestJudgeAdoption:
         assert verdict["gains"] == ["A"]
 
     def test_latency_over_budget_rejects(self):
-        """정확도 기준을 다 채워도 p50 > 1s면 롤백"""
+        """정확도 기준을 다 채워도 p50 > 5s면 롤백"""
         base = {"A": None, "B": None, "C": 1}
         cand = {"A": 1, "B": 1, "C": 1}
 
-        verdict = judge_adoption(base, cand, p50_latency_s=1.5, excluded_ids=frozenset())
+        verdict = judge_adoption(base, cand, p50_latency_s=5.5, excluded_ids=frozenset())
 
         assert verdict["adopt"] is False
+
+    def test_latency_within_relaxed_budget_adopts(self):
+        """#228: 지연 기준을 5s로 완화 — bge 실측 p50(3.96s)은 이제 지연 게이트를 통과한다(1s 시절엔 탈락했음)."""
+        base = {"A": 2, "B": None, "C": 5, "D": 1}
+        cand = {"A": 1, "B": 1, "C": 2, "D": 1}
+
+        verdict = judge_adoption(base, cand, p50_latency_s=3.96, excluded_ids=frozenset())
+
+        assert verdict["adopt"] is True
 
     def test_mrr_must_strictly_increase(self):
         """순위 변동이 전혀 없으면 MRR 순증 >0 미충족"""
