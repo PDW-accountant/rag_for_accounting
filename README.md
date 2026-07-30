@@ -73,8 +73,8 @@ flowchart TB
     A["회계기준서 PDF"]
     B["Qwen 3.6 구조화 파싱<br/>(vLLM)"]
     C["구조화 Markdown"]
-    D["온톨로지 구조화<br/>(장·절·문단·관계)"]
-    E["조항 단위 청킹"]
+    D["온톨로지 구조화<br/><장·절·항·문단>·관계"]
+    E["항 단위 청킹"]
     F["KURE-v1 임베딩"]
     G[("PostgreSQL<br/>pgvector HNSW")]
 
