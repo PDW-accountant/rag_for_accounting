@@ -68,36 +68,87 @@ CPA 시험은 K-IFRS를 중심으로 출제되지만, 감사 현장에서는 일
 ### 문서 적재
 
 ```mermaid
-flowchart LR
-    A["회계기준 PDF"] --> B["vllm으로 Qwen 3.6 모델 서빙 후 파싱"]
-    B --> C["구조화 Markdown"]
-    C --> D["온톨로지 그래프<br/>Standard·Section·Subsection"]
-    D --> E["온톨로지 노드 기반 청킹"]
-    E --> F["KURE-v1 임베딩"]
-    F --> G[("PostgreSQL<br/>pgvector HNSW")]
+%%{init: {"theme":"base","themeVariables":{"fontSize":"20px","fontFamily":"Arial, sans-serif"},"flowchart":{"useMaxWidth":true,"nodeSpacing":45,"rankSpacing":65,"padding":18}}}%%
+flowchart TB
+    A["회계기준서 PDF"]
+    B["Qwen 3.6 구조화 파싱<br/>(vLLM)"]
+    C["구조화 Markdown"]
+    D["온톨로지 구조화<br/>(장·절·문단·관계)"]
+    E["조항 단위 청킹"]
+    F["KURE-v1 임베딩"]
+    G[("PostgreSQL<br/>pgvector HNSW")]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+
+    classDef step fill:#EAF2F8,stroke:#1F4D78,stroke-width:2px,color:#111827,font-size:20px;
+    classDef storage fill:#1F4D78,stroke:#163A5C,stroke-width:2px,color:#FFFFFF,font-size:20px;
+
+    class A,B,C,D,E,F step;
+    class G storage;
 ```
 
 ### 질의 처리
 
 ```mermaid
-flowchart LR
-    Q["사용자 질문"] --> RW["rewrite<br/>질의 분석·재작성"]
-    RW --> ACC{"회계 질문인가?"}
-    ACC -->|비회계| ED([END])
-    ACC -->|회계| HIL{"사용자 확인이<br/>필요한가?"}
-    HIL -->|필요| HR["Human-in-the-Loop"]
-    HIL -->|불필요| S["search"]
-    HR --> S
-    S --> D["Dense 검색"]
-    S --> SP["Sparse 검색"]
-    D --> RRF["RRF 순위 결합"]
-    SP --> RRF
-    RRF --> RR["rerank<br/>기본 비활성"]
-    RR --> EV{"evaluate<br/>근거 충분?"}
-    EV -->|부족| RW
-    EV -->|충분| G["generate<br/>답변·인용 생성"]
-    G --> ED
- ```
+%%{init: {"theme":"base","themeVariables":{"fontSize":"20px","fontFamily":"Arial, sans-serif"},"flowchart":{"useMaxWidth":true,"nodeSpacing":50,"rankSpacing":65,"padding":18}}}%%
+flowchart TB
+    Q["사용자 질문"]
+    RW["질문 분석·재작성"]
+    ACC{"회계 관련 질문인가?"}
+    BYPASS(["비회계 질문<br/>검색 없이 종료"])
+
+    CHECK{"사람의 확인이 필요한가?"}
+    HUMAN["사용자 확인<br/>(Human-in-the-Loop)"]
+
+    SEARCH["하이브리드 검색<br/>Dense + Sparse"]
+    RRF["검색 순위 결합<br/>(RRF)"]
+    EV{"근거가 충분한가?"}
+
+    ANSWER["근거 기반 답변·인용 생성"]
+    DONE(["답변 완료"])
+
+    RETRY{"재검색 횟수가<br/>남아 있는가?"}
+    REWRITE["질의 재작성 후 재검색"]
+    REFUSE(["근거 부족<br/>답변 보류"])
+
+    Q --> RW
+    RW --> ACC
+
+    ACC -->|아니오| BYPASS
+    ACC -->|예| CHECK
+
+    CHECK -->|필요| HUMAN
+    CHECK -->|불필요| SEARCH
+    HUMAN --> SEARCH
+
+    SEARCH --> RRF
+    RRF --> EV
+
+    EV -->|충분| ANSWER
+    ANSWER --> DONE
+
+    EV -->|부족| RETRY
+    RETRY -->|예| REWRITE
+    REWRITE -.-> SEARCH
+    RETRY -->|아니오| REFUSE
+
+    classDef step fill:#EAF2F8,stroke:#1F4D78,stroke-width:2px,color:#111827,font-size:20px;
+    classDef decision fill:#FFF4CC,stroke:#B7791F,stroke-width:2px,color:#111827,font-size:20px;
+    classDef human fill:#E7F6EC,stroke:#2F855A,stroke-width:2px,color:#111827,font-size:20px;
+    classDef terminal fill:#1F4D78,stroke:#163A5C,stroke-width:2px,color:#FFFFFF,font-size:20px;
+    classDef refuse fill:#FDECEC,stroke:#C53030,stroke-width:2px,color:#8B1A1A,font-size:20px;
+
+    class Q,RW,SEARCH,RRF,ANSWER,REWRITE step;
+    class ACC,CHECK,EV,RETRY decision;
+    class HUMAN human;
+    class BYPASS,DONE terminal;
+    class REFUSE refuse;
+```
 
 메인 workflow는 `rewrite → search → rerank → evaluate → generate` 순서로 실행됩니다. `rerank` 단계는 파이프라인에 존재하지만 실험에서 품질 저하가 확인되어 기본값은 비활성화되어 있습니다. [아래에 자세하게 기술되어 있습니다.](#61-graph-db-중심-graphrag)
 
